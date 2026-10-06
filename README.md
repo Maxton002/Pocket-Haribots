@@ -1,3 +1,2 @@
-# Untitled-Game
-Hari-Mon
+# Pocket-Haribots / Hari-Mon
 
