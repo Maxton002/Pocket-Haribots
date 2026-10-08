@@ -1,77 +1,115 @@
 [gd_scene format=3 uid="uid://pd074hlowi3l"]
 
-[ext_resource type="Texture2D" uid="uid://baaqfl1rak6fs" path="res://icon.svg" id="1_j2wod"]
-
 [sub_resource type="GDScript" id="GDScript_g2dxt"]
 resource_name = "Main"
 script/source = "extends Node2D
 
+var babybuster = preload(\"res://Scenes/babybuster.tscn\")
+var popstron = preload(\"res://Scenes/popstron.tscn\")
+var siborg = preload(\"res://Scenes/siborg.tscn\")
 
-# Called when the node enters the scene tree for the first time.
+@export var max_elements: int = 5
+@export var spacing: float = 200.0
+@export var start_x: float = 200.0  # X position of the furthest LEFT element
+@export var start_y: float = 250.0  # Y position of the queue line
+
+var list = [babybuster, popstron, siborg]
+var active_queue: Array[Node2D] = []
+var last_spawn = null
+
 func _ready() -> void:
-	pass # Replace with function body.
+	for i in range(max_elements):
+		spawn_element()
+
+func spawn_element() -> void:
+	var random = list.pick_random()
+	
+	if random == last_spawn and list.size() > 1:
+		var choices = list.duplicate()
+		choices.erase(last_spawn)
+		random = choices.pick_random()
+	
+	last_spawn = random
+	
+	var instance = random.instantiate() as Node2D
+	add_child(instance)
+	active_queue.append(instance)
+	
+	update_positions()
+
+func update_positions() -> void:
+	# Index 0 is placed at start_x (furthest left)
+	# Subsequent items (1, 2, 3...) are placed further to the right
+	for i in range(active_queue.size()):
+		var target_x = start_x + (i * spacing)
+		active_queue[i].position = Vector2(target_x, start_y)
+
+func process_furthest_left(required_group: String) -> void:
+	if active_queue.is_empty():
+		print(\"DEBUG: active_queue is empty!\")
+		return
+		
+	var leftmost_node = active_queue[0]
+	
+	# Print exact debug details when a button is clicked
+	print(\"--- BUTTON CLICKED ---\")
+	print(\"Button requested group: \", required_group)
+	print(\"Leftmost Node Name: \", leftmost_node.name)
+	print(\"Leftmost Node Groups: \", leftmost_node.get_groups())
+	
+	# Check children groups as well
+	var child_groups = []
+	for child in leftmost_node.get_children():
+		child_groups.append_array(child.get_groups())
+	print(\"Children Groups: \", child_groups)
+	
+	if node_has_group(leftmost_node, required_group):
+		print(\"MATCH! Removing node.\")
+		active_queue.remove_at(0)
+		leftmost_node.queue_free()
+		spawn_element()
+	else:
+		print(\"NO MATCH! The requested group was not found.\")
+	print(\"----------------------\")
+
+# Checks the root node OR any child node (Sprite2D, Area2D) for the group
+func node_has_group(node: Node, group_name: String) -> bool:
+	if node.is_in_group(group_name):
+		return true
+	for child in node.get_children():
+		if child.is_in_group(group_name):
+			return true
+	return false
+
+# Helper function to check if the node OR its Sprite2D child has the group
+func has_group_recursive(node: Node, group_name: String) -> bool:
+	if node.is_in_group(group_name):
+		return true
+	for child in node.get_children():
+		if child.is_in_group(group_name):
+			return true
+	return false
+
+# --- Button Handlers ---
+
+func _on_pressed_1() -> void: # Fire > Grass
+	process_furthest_left(\"Grass\")
+
+func _on_pressed_2() -> void: # Water > Fire
+	process_furthest_left(\"Fire\")
+
+func _on_pressed_3() -> void: # Grass > Water
+	process_furthest_left(\"Water\")
 
 
-# Called every frame. 'delta' is the elapsed time since the previous frame.
-func _process(delta: float) -> void:
-	pass
-"
-
-[sub_resource type="GDScript" id="GDScript_g4v7s"]
-script/source = "extends Button
-
-
-# Called when the node enters the scene tree for the first time.
-func _ready() -> void:
-	pass # Replace with function body.
-
-
-# Called every frame. 'delta' is the elapsed time since the previous frame.
-func _process(delta: float) -> void:
-	pass
-
-func _on_pressed() -> void:
-	if $\"../Grass\".is_in_group(\"Grass\"):
-		print(\"grass\")
-		$\"../Grass\".hide()
-"
-
-[sub_resource type="GDScript" id="GDScript_yf5fn"]
-script/source = "extends Button
-
-
-# Called when the node enters the scene tree for the first time.
-func _ready() -> void:
-	pass # Replace with function body.
-
-
-# Called every frame. 'delta' is the elapsed time since the previous frame.
-func _process(delta: float) -> void:
-	pass
-
-func _on_pressed() -> void:
-	if $\"../Fire\".is_in_group(\"Fire\"):
-		print(\"fire\")
-		$\"../Fire\".hide()
-"
-
-[sub_resource type="GDScript" id="GDScript_j2wod"]
-script/source = "extends Button
-
-
-# Called when the node enters the scene tree for the first time.
-func _ready() -> void:
-	pass # Replace with function body.
-
-
-# Called every frame. 'delta' is the elapsed time since the previous frame.
-func _process(delta: float) -> void:
-	pass
-
-func _on_pressed() -> void:
-	if $\"../Water\".is_in_group(\"Water\"):
-		print(\"water\")
-		$\"../Water\".hide()
+func _on_retry_pressed() -> void:
+	for node in active_queue:
+		if is_instance_valid(node):
+			node.queue_free()
+	active_queue.clear()
+	
+	for i in range(max_elements):
+		spawn_element()
 "
 
 [node name="Main" type="Node2D" unique_id=1413316767]
@@ -82,45 +120,35 @@ offset_right = 1161.0
 offset_bottom = 659.0
 color = Color(0.3882353, 0.3019608, 1, 1)
 
-[node name="Button" type="Button" parent="." unique_id=2078168691]
+[node name="FireB" type="Button" parent="." unique_id=2078168691]
 offset_left = 333.0
 offset_top = 435.0
 offset_right = 439.0
 offset_bottom = 604.0
 text = "Fire"
-script = SubResource("GDScript_g4v7s")
 
-[node name="Button2" type="Button" parent="." unique_id=1108039389]
+[node name="WaterB" type="Button" parent="." unique_id=1108039389]
 offset_left = 476.0
 offset_top = 437.0
 offset_right = 580.0
 offset_bottom = 606.0
 text = "Water"
-script = SubResource("GDScript_yf5fn")
 
-[node name="Button3" type="Button" parent="." unique_id=1054734438]
+[node name="GrassB" type="Button" parent="." unique_id=1054734438]
 offset_left = 614.0
 offset_top = 433.0
 offset_right = 720.0
 offset_bottom = 607.0
 text = "Grass"
-script = SubResource("GDScript_j2wod")
 
-[node name="Fire" type="Sprite2D" parent="." unique_id=497557604 groups=["Fire"]]
-modulate = Color(0.9853106, 0.2462058, 0.15997574, 1)
-position = Vector2(326, 259)
-texture = ExtResource("1_j2wod")
+[node name="Retry" type="Button" parent="." unique_id=1424652606]
+offset_left = 532.0
+offset_top = 31.0
+offset_right = 637.0
+offset_bottom = 77.0
+text = "RETRY"
 
-[node name="Water" type="Sprite2D" parent="." unique_id=1115821921 groups=["Water"]]
-modulate = Color(0.34117648, 1, 1, 1)
-position = Vector2(565, 265)
-texture = ExtResource("1_j2wod")
-
-[node name="Grass" type="Sprite2D" parent="." unique_id=132477817 groups=["Grass"]]
-modulate = Color(0.4392157, 1, 0.30980393, 1)
-position = Vector2(804, 257)
-texture = ExtResource("1_j2wod")
-
-[connection signal="pressed" from="Button" to="Button" method="_on_pressed"]
-[connection signal="pressed" from="Button2" to="Button2" method="_on_pressed"]
-[connection signal="pressed" from="Button3" to="Button3" method="_on_pressed"]
+[connection signal="pressed" from="FireB" to="." method="_on_pressed_1"]
+[connection signal="pressed" from="WaterB" to="." method="_on_pressed_2"]
+[connection signal="pressed" from="GrassB" to="." method="_on_pressed_3"]
+[connection signal="pressed" from="Retry" to="." method="_on_retry_pressed"]

@@ -1,0 +1,9 @@
+[gd_scene format=3 uid="uid://cp0usxf40kbjs"]
+
+[ext_resource type="Texture2D" uid="uid://baaqfl1rak6fs" path="res://icon.svg" id="1_i48xf"]
+
+[node name="siborg" type="Node2D" unique_id=102235305 groups=["Fire"]]
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=1323257981]
+modulate = Color(0.99170095, 0.3849441, 0.32233667, 1)
+texture = ExtResource("1_i48xf")

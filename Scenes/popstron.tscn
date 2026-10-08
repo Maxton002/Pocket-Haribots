@@ -1,0 +1,9 @@
+[gd_scene format=3 uid="uid://cd5n41t6vgol"]
+
+[ext_resource type="Texture2D" uid="uid://baaqfl1rak6fs" path="res://icon.svg" id="1_l4cni"]
+
+[node name="popstron" type="Node2D" unique_id=6698494 groups=["Water"]]
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=600505954]
+modulate = Color(0.05882353, 1, 1, 1)
+texture = ExtResource("1_l4cni")
