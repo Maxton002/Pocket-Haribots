@@ -1,8 +1,14 @@
 [gd_scene format=3 uid="uid://pd074hlowi3l"]
 
+[ext_resource type="Texture2D" uid="uid://baaqfl1rak6fs" path="res://icon.svg" id="1_ebmjs"]
+
 [sub_resource type="GDScript" id="GDScript_g2dxt"]
 resource_name = "Main"
 script/source = "extends Node2D
+
+@onready var timer: Timer = $Timer
+@onready var timer_label: Label = $TextureProgressBar/Label
+@onready var circular_bar: TextureProgressBar = $TextureProgressBar
 
 var babybuster = preload(\"res://Scenes/babybuster.tscn\")
 var popstron = preload(\"res://Scenes/popstron.tscn\")
@@ -16,10 +22,28 @@ var siborg = preload(\"res://Scenes/siborg.tscn\")
 var list = [babybuster, popstron, siborg]
 var active_queue: Array[Node2D] = []
 var last_spawn = null
+var score = 0
 
 func _ready() -> void:
+	# Set progress bar bounds to match timer duration
+	circular_bar.max_value = timer.wait_time
+	circular_bar.min_value = 0.0
+	timer.start()
 	for i in range(max_elements):
 		spawn_element()
+
+func _process(_delta: float) -> void:
+	if not timer.is_stopped():
+		var time_left: float = timer.time_left
+		
+		# 1. Update circular progress bar value
+		circular_bar.value = time_left
+		
+		# 2. Update label text (formatted to 1 decimal place, e.g., \"5.2s\")
+		timer_label.text = \"%.1f\" % time_left
+	else:
+		circular_bar.value = 0
+		timer_label.text = \"0.0\"
 
 func spawn_element() -> void:
 	var random = list.pick_random()
@@ -94,12 +118,15 @@ func has_group_recursive(node: Node, group_name: String) -> bool:
 
 func _on_pressed_1() -> void: # Fire > Grass
 	process_furthest_left(\"Grass\")
+	score += 1
 
 func _on_pressed_2() -> void: # Water > Fire
 	process_furthest_left(\"Fire\")
+	score += 1
 
 func _on_pressed_3() -> void: # Grass > Water
 	process_furthest_left(\"Water\")
+	score += 1
 
 
 func _on_retry_pressed() -> void:
@@ -110,6 +137,18 @@ func _on_retry_pressed() -> void:
 	
 	for i in range(max_elements):
 		spawn_element()
+
+
+func _on_timer_timeout() -> void:
+	timer.stop() # Replace with function body.
+	# Loop through every node in active_queue and delete it
+	for node in active_queue:
+		if is_instance_valid(node):
+			node.queue_free()
+			
+	# Clear the array so no references remain
+	active_queue.clear()
+	print(score)
 "
 
 [node name="Main" type="Node2D" unique_id=1413316767]
@@ -121,24 +160,24 @@ offset_bottom = 659.0
 color = Color(0.3882353, 0.3019608, 1, 1)
 
 [node name="FireB" type="Button" parent="." unique_id=2078168691]
-offset_left = 333.0
-offset_top = 435.0
-offset_right = 439.0
-offset_bottom = 604.0
+offset_left = 398.0
+offset_top = 426.0
+offset_right = 504.0
+offset_bottom = 595.0
 text = "Fire"
 
 [node name="WaterB" type="Button" parent="." unique_id=1108039389]
-offset_left = 476.0
-offset_top = 437.0
-offset_right = 580.0
-offset_bottom = 606.0
+offset_left = 541.0
+offset_top = 428.0
+offset_right = 645.0
+offset_bottom = 597.0
 text = "Water"
 
 [node name="GrassB" type="Button" parent="." unique_id=1054734438]
-offset_left = 614.0
-offset_top = 433.0
-offset_right = 720.0
-offset_bottom = 607.0
+offset_left = 679.0
+offset_top = 424.0
+offset_right = 785.0
+offset_bottom = 598.0
 text = "Grass"
 
 [node name="Retry" type="Button" parent="." unique_id=1424652606]
@@ -148,7 +187,26 @@ offset_right = 637.0
 offset_bottom = 77.0
 text = "RETRY"
 
+[node name="Timer" type="Timer" parent="." unique_id=2064532764]
+wait_time = 10.0
+autostart = true
+
+[node name="TextureProgressBar" type="TextureProgressBar" parent="." unique_id=261171101]
+offset_right = 134.0
+offset_bottom = 89.0
+max_value = 60.0
+fill_mode = 4
+texture_progress = ExtResource("1_ebmjs")
+
+[node name="Label" type="Label" parent="TextureProgressBar" unique_id=848115040]
+layout_mode = 0
+offset_left = 44.0
+offset_top = 126.0
+offset_right = 84.0
+offset_bottom = 149.0
+
 [connection signal="pressed" from="FireB" to="." method="_on_pressed_1"]
 [connection signal="pressed" from="WaterB" to="." method="_on_pressed_2"]
 [connection signal="pressed" from="GrassB" to="." method="_on_pressed_3"]
 [connection signal="pressed" from="Retry" to="." method="_on_retry_pressed"]
+[connection signal="timeout" from="Timer" to="." method="_on_timer_timeout"]
