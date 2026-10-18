@@ -216,7 +216,7 @@ func has_group_recursive(node: Node, group_name: String) -> bool:
 			return true
 	return false
 
-
+# --- Debug ---
 func _on_retry_pressed() -> void:
 	# 1. Clear active instances
 	for node in active_queue:
