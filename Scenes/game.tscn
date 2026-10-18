@@ -23,6 +23,9 @@ var penalty_per_wrong: int = 50
 var babybuster = preload(\"res://Scenes/babybuster.tscn\")
 var popstron = preload(\"res://Scenes/popstron.tscn\")
 var siborg = preload(\"res://Scenes/siborg.tscn\")
+var ceo = preload(\"res://Scenes/ceo.tscn\")
+var honeydroid = preload(\"res://Scenes/honeydroid.tscn\")
+var fundyboo = preload(\"res://Scenes/fundyboo.tscn\")
 
 @export var default_game_time: float = 20
 @export var max_elements: int = 5
@@ -30,7 +33,7 @@ var siborg = preload(\"res://Scenes/siborg.tscn\")
 @export var start_x: float = 200.0  # X position of the furthest LEFT element
 @export var start_y: float = 250.0  # Y position of the queue line
 
-var list = [babybuster, popstron, siborg]
+var list = [babybuster, popstron, siborg, ceo, honeydroid, fundyboo]
 var active_queue: Array[Node2D] = []
 var last_spawn = null
 var score = 0
@@ -213,19 +216,6 @@ func has_group_recursive(node: Node, group_name: String) -> bool:
 			return true
 	return false
 
-# --- Button Handlers ---
-
-func _on_pressed_1() -> void: # Fire > Grass
-	process_furthest_left(\"Grass\")
-	score += 1
-
-func _on_pressed_2() -> void: # Water > Fire
-	process_furthest_left(\"Fire\")
-	score += 1
-
-func _on_pressed_3() -> void: # Grass > Water
-	process_furthest_left(\"Water\")
-	score += 1
 
 func _on_retry_pressed() -> void:
 	# 1. Clear active instances
@@ -241,7 +231,7 @@ func _on_retry_pressed() -> void:
 	# 3. Reset timer back to full default time
 	start_new_game()
 
-
+# --- Time Out ---
 func _on_timer_timeout() -> void:
 	timer.stop() # Replace with function body.
 	# Loop through every node in active_queue and delete it
@@ -253,6 +243,37 @@ func _on_timer_timeout() -> void:
 	active_queue.clear()
 	print(score)
 	show_results_tally()
+
+# --- Button Handlers ---
+
+func _on_divine_b_pressed() -> void:
+	process_furthest_left(\"Dark\")
+	score += 1
+
+
+func _on_dark_b_pressed() -> void:
+	process_furthest_left(\"Electric\")
+	score += 1
+
+
+func _on_electric_b_pressed() -> void:
+	process_furthest_left(\"Divine\")
+	score += 1
+
+
+func _on_fire_b_pressed() -> void:
+	process_furthest_left(\"Grass\")
+	score += 1
+
+
+func _on_water_b_pressed() -> void:
+	process_furthest_left(\"Fire\")
+	score += 1
+
+
+func _on_grass_b_pressed() -> void:
+	process_furthest_left(\"Water\")
+	score += 1
 "
 
 [node name="Main" type="Node2D" unique_id=1413316767]
@@ -264,25 +285,46 @@ offset_bottom = 659.0
 color = Color(0.3882353, 0.3019608, 1, 1)
 
 [node name="FireB" type="Button" parent="." unique_id=2078168691]
-offset_left = 398.0
-offset_top = 426.0
-offset_right = 504.0
-offset_bottom = 595.0
+offset_left = 161.0
+offset_top = 428.0
+offset_right = 267.0
+offset_bottom = 597.0
 text = "Fire"
 
 [node name="WaterB" type="Button" parent="." unique_id=1108039389]
-offset_left = 541.0
-offset_top = 428.0
-offset_right = 645.0
-offset_bottom = 597.0
+offset_left = 304.0
+offset_top = 427.0
+offset_right = 408.0
+offset_bottom = 599.0
 text = "Water"
 
 [node name="GrassB" type="Button" parent="." unique_id=1054734438]
-offset_left = 679.0
-offset_top = 424.0
-offset_right = 785.0
-offset_bottom = 598.0
+offset_left = 442.0
+offset_top = 426.0
+offset_right = 548.0
+offset_bottom = 600.0
 text = "Grass"
+
+[node name="DivineB" type="Button" parent="." unique_id=936766921]
+offset_left = 818.0
+offset_top = 426.0
+offset_right = 924.0
+offset_bottom = 600.0
+text = "Divine"
+
+[node name="ElectricB" type="Button" parent="." unique_id=578902193]
+offset_left = 699.0
+offset_top = 424.0
+offset_right = 805.0
+offset_bottom = 598.0
+text = "Electric"
+
+[node name="DarkB" type="Button" parent="." unique_id=957495085]
+offset_left = 574.0
+offset_top = 425.0
+offset_right = 680.0
+offset_bottom = 599.0
+text = "Dark"
 
 [node name="Retry" type="Button" parent="." unique_id=1424652606]
 offset_left = 532.0
@@ -339,8 +381,11 @@ layout_mode = 2
 [node name="FinalScoreLabel" type="Label" parent="ResultsCanvas/ResultsPanel/VBoxContainer" unique_id=490459567]
 layout_mode = 2
 
-[connection signal="pressed" from="FireB" to="." method="_on_pressed_1"]
-[connection signal="pressed" from="WaterB" to="." method="_on_pressed_2"]
-[connection signal="pressed" from="GrassB" to="." method="_on_pressed_3"]
+[connection signal="pressed" from="FireB" to="." method="_on_fire_b_pressed"]
+[connection signal="pressed" from="WaterB" to="." method="_on_water_b_pressed"]
+[connection signal="pressed" from="GrassB" to="." method="_on_grass_b_pressed"]
+[connection signal="pressed" from="DivineB" to="." method="_on_divine_b_pressed"]
+[connection signal="pressed" from="ElectricB" to="." method="_on_electric_b_pressed"]
+[connection signal="pressed" from="DarkB" to="." method="_on_dark_b_pressed"]
 [connection signal="pressed" from="Retry" to="." method="_on_retry_pressed"]
 [connection signal="timeout" from="Timer" to="." method="_on_timer_timeout"]

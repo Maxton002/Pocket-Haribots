@@ -25,6 +25,9 @@ window/stretch/aspect="expand"
 Water=""
 Grass=""
 Fire=""
+Divine=""
+Electric=""
+Dark=""
 
 [physics]
 

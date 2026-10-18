@@ -1,0 +1,9 @@
+[gd_scene format=3 uid="uid://chgsg1xmidalp"]
+
+[ext_resource type="Texture2D" uid="uid://baaqfl1rak6fs" path="res://icon.svg" id="1_t272t"]
+
+[node name="honeydroid" type="Node2D" unique_id=2066955173 groups=["Electric"]]
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=1154396835]
+modulate = Color(1, 1, 0, 1)
+texture = ExtResource("1_t272t")

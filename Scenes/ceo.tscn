@@ -1,0 +1,9 @@
+[gd_scene format=3 uid="uid://c4uqq2okpsnyw"]
+
+[ext_resource type="Texture2D" uid="uid://baaqfl1rak6fs" path="res://icon.svg" id="1_crmvr"]
+
+[node name="CEO" type="Node2D" unique_id=1210234292 groups=["Divine"]]
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=598882093]
+modulate = Color(2.8223546, 2.8223546, 2.8223546, 1)
+texture = ExtResource("1_crmvr")
