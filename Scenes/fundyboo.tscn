@@ -1,9 +1,8 @@
 [gd_scene format=3 uid="uid://cfgec8yk0orcr"]
 
-[ext_resource type="Texture2D" uid="uid://baaqfl1rak6fs" path="res://icon.svg" id="1_q12va"]
+[ext_resource type="Texture2D" uid="uid://cuhptxqfl1nh" path="res://Assets/Haribots/FUNDYBOO.png" id="1_q12va"]
 
 [node name="fundyboo" type="Node2D" unique_id=1538177828 groups=["Dark"]]
 
 [node name="Sprite2D" type="Sprite2D" parent="." unique_id=193190414]
-modulate = Color(0.19793725, 0.19793722, 0.19793722, 1)
 texture = ExtResource("1_q12va")

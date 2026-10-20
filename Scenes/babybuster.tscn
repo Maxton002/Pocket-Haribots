@@ -1,9 +1,8 @@
 [gd_scene format=3 uid="uid://blwkt7lboa7jw"]
 
-[ext_resource type="Texture2D" uid="uid://baaqfl1rak6fs" path="res://icon.svg" id="1_i3oae"]
+[ext_resource type="Texture2D" uid="uid://dagj235cgelnt" path="res://Assets/Haribots/Green 2.png" id="1_i3oae"]
 
 [node name="babybuster" type="Node2D" unique_id=388077329 groups=["Grass"]]
 
 [node name="Sprite2D" type="Sprite2D" parent="." unique_id=1842911100]
-modulate = Color(0.27120152, 0.6424465, 0.14128175, 1)
 texture = ExtResource("1_i3oae")

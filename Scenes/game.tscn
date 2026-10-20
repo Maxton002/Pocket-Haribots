@@ -278,10 +278,12 @@ func _on_grass_b_pressed() -> void:
 
 [node name="Main" type="Node2D" unique_id=1413316767]
 script = SubResource("GDScript_g2dxt")
+default_game_time = 30.0
 start_x = 230.0
 start_y = 280.0
 
 [node name="ColorRect" type="ColorRect" parent="." unique_id=893672062]
+offset_top = -5.0
 offset_right = 1297.0
 offset_bottom = 740.0
 color = Color(0.3882353, 0.3019608, 1, 1)
