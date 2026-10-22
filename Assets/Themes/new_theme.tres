@@ -1,0 +1,7 @@
+[gd_resource type="Theme" format=3 uid="uid://dtnd1nhlhvkw0"]
+
+[ext_resource type="FontFile" uid="uid://rp0wswqsbjmf" path="res://Assets/Fonts/Super Waffles.ttf" id="1_ufiqs"]
+
+[resource]
+default_font = ExtResource("1_ufiqs")
+default_font_size = 30

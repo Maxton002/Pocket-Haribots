@@ -1,6 +1,9 @@
 [gd_scene format=3 uid="uid://pd074hlowi3l"]
 
-[ext_resource type="Texture2D" uid="uid://baaqfl1rak6fs" path="res://icon.svg" id="1_ebmjs"]
+[ext_resource type="Theme" uid="uid://dtnd1nhlhvkw0" path="res://Assets/Themes/new_theme.tres" id="1_qxrlw"]
+[ext_resource type="Script" uid="uid://devind0y5pcmm" path="res://Scripts/cardButton.gd" id="2_wrm1d"]
+[ext_resource type="Texture2D" uid="uid://b1gmya1qw6rd4" path="res://Assets/CircTimer.png" id="3_wrm1d"]
+[ext_resource type="FontFile" uid="uid://rp0wswqsbjmf" path="res://Assets/Fonts/Super Waffles.ttf" id="4_3dryh"]
 
 [sub_resource type="GDScript" id="GDScript_g2dxt"]
 resource_name = "Main"
@@ -33,13 +36,17 @@ var fundyboo = preload(\"res://Scenes/fundyboo.tscn\")
 @export var start_x: float = 200.0  # X position of the furthest LEFT element
 @export var start_y: float = 250.0  # Y position of the queue line
 
+
 var list = [babybuster, popstron, siborg, ceo, honeydroid, fundyboo]
 var active_queue: Array[Node2D] = []
 var last_spawn = null
 var score = 0
 
 func _ready() -> void:
-	# Set progress bar bounds to match timer duration
+	print(\"Hello\")
+	for child in get_tree().root.get_children():
+		if child is CanvasLayer and child != self:
+			child.queue_free()
 	circular_bar.max_value = timer.wait_time
 	circular_bar.min_value = 0.0
 	start_new_game()
@@ -129,7 +136,7 @@ func process_furthest_left(required_group: String) -> void:
 	else:
 		print(\"NO MATCH!\")
 		wrong_picks += 1
-		deduct_time(1.0)
+		deduct_time(2.0)
 	print(\"----------------------\")
 
 func deduct_time(seconds: float) -> void:
@@ -276,6 +283,10 @@ func _on_grass_b_pressed() -> void:
 	score += 1
 "
 
+[sub_resource type="Theme" id="Theme_wowpa"]
+default_font = ExtResource("4_3dryh")
+default_font_size = 100
+
 [node name="Main" type="Node2D" unique_id=1413316767]
 script = SubResource("GDScript_g2dxt")
 default_game_time = 30.0
@@ -289,54 +300,80 @@ offset_bottom = 740.0
 color = Color(0.3882353, 0.3019608, 1, 1)
 metadata/_edit_lock_ = true
 
-[node name="FireB" type="Button" parent="." unique_id=2078168691]
-offset_left = 252.0
-offset_top = 507.0
-offset_right = 358.0
-offset_bottom = 676.0
-text = "Fire"
+[node name="Control" type="Control" parent="." unique_id=352991180]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
 
-[node name="WaterB" type="Button" parent="." unique_id=1108039389]
-offset_left = 395.0
-offset_top = 506.0
-offset_right = 499.0
-offset_bottom = 678.0
-text = "Water"
-
-[node name="GrassB" type="Button" parent="." unique_id=1054734438]
-offset_left = 533.0
-offset_top = 505.0
-offset_right = 639.0
-offset_bottom = 679.0
-text = "Grass"
-
-[node name="DivineB" type="Button" parent="." unique_id=936766921]
-offset_left = 909.0
-offset_top = 505.0
-offset_right = 1015.0
-offset_bottom = 679.0
-text = "Divine"
-
-[node name="ElectricB" type="Button" parent="." unique_id=578902193]
-offset_left = 790.0
-offset_top = 503.0
-offset_right = 896.0
-offset_bottom = 677.0
-text = "Electric"
-
-[node name="DarkB" type="Button" parent="." unique_id=957495085]
-offset_left = 665.0
-offset_top = 504.0
-offset_right = 771.0
-offset_bottom = 678.0
-text = "Dark"
-
-[node name="Retry" type="Button" parent="." unique_id=1424652606]
+[node name="Retry" type="Button" parent="Control" unique_id=1424652606]
+layout_mode = 0
 offset_left = 590.0
 offset_top = 33.0
 offset_right = 695.0
 offset_bottom = 79.0
+theme = ExtResource("1_qxrlw")
 text = "RETRY"
+
+[node name="FireB" type="Button" parent="Control" unique_id=2078168691]
+layout_mode = 0
+offset_left = 252.0
+offset_top = 507.0
+offset_right = 358.0
+offset_bottom = 676.0
+theme = ExtResource("1_qxrlw")
+text = "Fire"
+script = ExtResource("2_wrm1d")
+
+[node name="WaterB" type="Button" parent="Control" unique_id=1108039389]
+layout_mode = 0
+offset_left = 395.0
+offset_top = 506.0
+offset_right = 499.0
+offset_bottom = 678.0
+theme = ExtResource("1_qxrlw")
+text = "Water"
+script = ExtResource("2_wrm1d")
+
+[node name="GrassB" type="Button" parent="Control" unique_id=1054734438]
+layout_mode = 0
+offset_left = 533.0
+offset_top = 505.0
+offset_right = 639.0
+offset_bottom = 679.0
+theme = ExtResource("1_qxrlw")
+text = "Grass"
+script = ExtResource("2_wrm1d")
+
+[node name="DivineB" type="Button" parent="Control" unique_id=936766921]
+layout_mode = 0
+offset_left = 661.0
+offset_top = 505.0
+offset_right = 774.0
+offset_bottom = 679.0
+theme = ExtResource("1_qxrlw")
+text = "Divine"
+script = ExtResource("2_wrm1d")
+
+[node name="DarkB" type="Button" parent="Control" unique_id=957495085]
+layout_mode = 0
+offset_left = 938.0
+offset_top = 504.0
+offset_right = 1044.0
+offset_bottom = 678.0
+theme = ExtResource("1_qxrlw")
+text = "Dark"
+script = ExtResource("2_wrm1d")
+
+[node name="ElectricB" type="Button" parent="Control" unique_id=578902193]
+layout_mode = 0
+offset_left = 802.0
+offset_top = 504.0
+offset_right = 918.0
+offset_bottom = 678.0
+theme = ExtResource("1_qxrlw")
+text = "Electric"
+script = ExtResource("2_wrm1d")
 
 [node name="Timer" type="Timer" parent="." unique_id=2064532764]
 wait_time = 20.0
@@ -345,18 +382,21 @@ autostart = true
 [node name="TextureProgressBar" type="TextureProgressBar" parent="." unique_id=261171101]
 offset_left = 17.0
 offset_top = 14.0
-offset_right = 151.0
-offset_bottom = 142.0
+offset_right = 529.0
+offset_bottom = 526.0
+scale = Vector2(0.3, 0.3)
 max_value = 60.0
 fill_mode = 4
-texture_progress = ExtResource("1_ebmjs")
+texture_progress = ExtResource("3_wrm1d")
 
 [node name="Label" type="Label" parent="TextureProgressBar" unique_id=848115040]
 layout_mode = 0
-offset_left = 44.0
-offset_top = 126.0
-offset_right = 84.0
-offset_bottom = 149.0
+offset_left = 140.0
+offset_top = 196.66666
+offset_right = 380.0
+offset_bottom = 759.6666
+theme = SubResource("Theme_wowpa")
+horizontal_alignment = 1
 
 [node name="ResultsCanvas" type="CanvasLayer" parent="." unique_id=1104722487]
 
@@ -385,11 +425,11 @@ layout_mode = 2
 [node name="FinalScoreLabel" type="Label" parent="ResultsCanvas/ResultsPanel/VBoxContainer" unique_id=490459567]
 layout_mode = 2
 
-[connection signal="pressed" from="FireB" to="." method="_on_fire_b_pressed"]
-[connection signal="pressed" from="WaterB" to="." method="_on_water_b_pressed"]
-[connection signal="pressed" from="GrassB" to="." method="_on_grass_b_pressed"]
-[connection signal="pressed" from="DivineB" to="." method="_on_divine_b_pressed"]
-[connection signal="pressed" from="ElectricB" to="." method="_on_electric_b_pressed"]
-[connection signal="pressed" from="DarkB" to="." method="_on_dark_b_pressed"]
-[connection signal="pressed" from="Retry" to="." method="_on_retry_pressed"]
+[connection signal="pressed" from="Control/Retry" to="." method="_on_retry_pressed"]
+[connection signal="pressed" from="Control/FireB" to="." method="_on_fire_b_pressed"]
+[connection signal="pressed" from="Control/WaterB" to="." method="_on_water_b_pressed"]
+[connection signal="pressed" from="Control/GrassB" to="." method="_on_grass_b_pressed"]
+[connection signal="pressed" from="Control/DivineB" to="." method="_on_divine_b_pressed"]
+[connection signal="pressed" from="Control/DarkB" to="." method="_on_dark_b_pressed"]
+[connection signal="pressed" from="Control/ElectricB" to="." method="_on_electric_b_pressed"]
 [connection signal="timeout" from="Timer" to="." method="_on_timer_timeout"]

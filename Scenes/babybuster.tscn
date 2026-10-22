@@ -1,8 +1,15 @@
 [gd_scene format=3 uid="uid://blwkt7lboa7jw"]
 
 [ext_resource type="Texture2D" uid="uid://dagj235cgelnt" path="res://Assets/Haribots/Green 2.png" id="1_i3oae"]
+[ext_resource type="Texture2D" uid="uid://cpw0vgs1nrgqs" path="res://Assets/Haribots/Group 480.png" id="2_qqf4f"]
 
 [node name="babybuster" type="Node2D" unique_id=388077329 groups=["Grass"]]
 
 [node name="Sprite2D" type="Sprite2D" parent="." unique_id=1842911100]
 texture = ExtResource("1_i3oae")
+
+[node name="Sprite2D2" type="Sprite2D" parent="." unique_id=1475409645]
+visible = false
+position = Vector2(1.9999999, 2.9999998)
+scale = Vector2(0.2, 0.2)
+texture = ExtResource("2_qqf4f")

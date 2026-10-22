@@ -1,0 +1,169 @@
+[gd_scene format=3 uid="uid://dbv5wcjxjhkwu"]
+
+[ext_resource type="FontFile" uid="uid://rp0wswqsbjmf" path="res://Assets/Fonts/Super Waffles.ttf" id="1_28flt"]
+[ext_resource type="Theme" uid="uid://dtnd1nhlhvkw0" path="res://Assets/Themes/new_theme.tres" id="2_48xlc"]
+
+[sub_resource type="GDScript" id="GDScript_hrwy1"]
+resource_name = "MainMenu"
+script/source = "extends Node2D
+
+
+# Called when the node enters the scene tree for the first time.
+func _ready() -> void:
+	pass # Replace with function body.
+
+
+# Called every frame. 'delta' is the elapsed time since the previous frame.
+func _process(delta: float) -> void:
+	pass
+"
+
+[sub_resource type="Theme" id="Theme_1ehe0"]
+default_font = ExtResource("1_28flt")
+default_font_size = 60
+
+[sub_resource type="GDScript" id="GDScript_ce3w2"]
+resource_name = "play"
+script/source = "extends Button
+
+@export_file(\"*.tscn\") var game_scene_path: String = \"res://Scenes/game.tscn\"
+@export var fade_duration: float = 0.5
+@export var hover_scale: Vector2 = Vector2(1.1, 1.1)
+@export var scale_duration: float = 0.15
+
+var default_scale: Vector2 = Vector2.ONE
+var tween: Tween
+
+func _ready() -> void:
+	# Ensure the pivot stays centered even if resized
+	pivot_offset = size / 2.0
+	resized.connect(func(): pivot_offset = size / 2.0)
+	
+	mouse_entered.connect(_on_mouse_entered)
+	mouse_exited.connect(_on_mouse_exited)
+	if not pressed.is_connected(_on_pressed):
+		pressed.connect(_on_pressed)
+
+func _on_mouse_entered() -> void:
+	_animate_scale(hover_scale)
+
+func _on_mouse_exited() -> void:
+	_animate_scale(default_scale)
+
+func _animate_scale(target_scale: Vector2) -> void:
+	if tween:
+		tween.kill()
+		
+	tween = create_tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_property(self, \"scale\", target_scale, scale_duration)
+
+
+func _on_pressed() -> void:
+	SceneTransition.change_scene(\"res://Scenes/game.tscn\")
+"
+
+[sub_resource type="GDScript" id="GDScript_48xlc"]
+resource_name = "about"
+script/source = "extends Button
+
+@export var hover_scale: Vector2 = Vector2(1.1, 1.1)
+@export var scale_duration: float = 0.15
+
+var default_scale: Vector2 = Vector2.ONE
+var tween: Tween
+
+func _ready() -> void:
+	# Ensure the pivot stays centered even if resized
+	pivot_offset = size / 2.0
+	resized.connect(func(): pivot_offset = size / 2.0)
+	
+	mouse_entered.connect(_on_mouse_entered)
+	mouse_exited.connect(_on_mouse_exited)
+
+func _on_mouse_entered() -> void:
+	_animate_scale(hover_scale)
+
+func _on_mouse_exited() -> void:
+	_animate_scale(default_scale)
+
+func _animate_scale(target_scale: Vector2) -> void:
+	if tween:
+		tween.kill()
+		
+	tween = create_tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_property(self, \"scale\", target_scale, scale_duration)
+"
+
+[sub_resource type="GDScript" id="GDScript_bhunq"]
+resource_name = "options"
+script/source = "extends Button
+
+@export var hover_scale: Vector2 = Vector2(1.1, 1.1)
+@export var scale_duration: float = 0.15
+
+var default_scale: Vector2 = Vector2.ONE
+var tween: Tween
+
+func _ready() -> void:
+	# Ensure the pivot stays centered even if resized
+	pivot_offset = size / 2.0
+	resized.connect(func(): pivot_offset = size / 2.0)
+	
+	mouse_entered.connect(_on_mouse_entered)
+	mouse_exited.connect(_on_mouse_exited)
+
+func _on_mouse_entered() -> void:
+	_animate_scale(hover_scale)
+
+func _on_mouse_exited() -> void:
+	_animate_scale(default_scale)
+
+func _animate_scale(target_scale: Vector2) -> void:
+	if tween:
+		tween.kill()
+		
+	tween = create_tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_property(self, \"scale\", target_scale, scale_duration)
+"
+
+[node name="Main Menu" type="Node2D" unique_id=2063143909]
+script = SubResource("GDScript_hrwy1")
+
+[node name="ColorRect" type="ColorRect" parent="." unique_id=1648866192]
+offset_right = 1293.0
+offset_bottom = 729.0
+color = Color(0.36830404, 0.20697582, 0.8892123, 1)
+metadata/_edit_lock_ = true
+
+[node name="PlayB" type="Button" parent="." unique_id=1597661152]
+offset_left = 520.0
+offset_top = 512.0
+offset_right = 760.0
+offset_bottom = 588.0
+theme = SubResource("Theme_1ehe0")
+text = "PLAY"
+script = SubResource("GDScript_ce3w2")
+game_scene_path = null
+fade_duration = null
+hover_scale = null
+scale_duration = null
+
+[node name="AboutB" type="Button" parent="." unique_id=280280258]
+offset_left = 784.0
+offset_top = 528.0
+offset_right = 943.0
+offset_bottom = 571.0
+theme = ExtResource("2_48xlc")
+text = "ABOUT"
+script = SubResource("GDScript_48xlc")
+
+[node name="OptionsB" type="Button" parent="." unique_id=1460022070]
+offset_left = 336.0
+offset_top = 528.0
+offset_right = 495.0
+offset_bottom = 571.0
+theme = ExtResource("2_48xlc")
+text = "OPTIONS"
+script = SubResource("GDScript_bhunq")
+
+[connection signal="pressed" from="PlayB" to="PlayB" method="_on_pressed"]
