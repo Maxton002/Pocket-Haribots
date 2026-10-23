@@ -1,5 +1,6 @@
 [gd_scene format=3 uid="uid://dbv5wcjxjhkwu"]
 
+[ext_resource type="Material" uid="uid://bkb3vfe21eenj" path="res://Shader/new_shader_material.tres" id="1_1ehe0"]
 [ext_resource type="FontFile" uid="uid://rp0wswqsbjmf" path="res://Assets/Fonts/Super Waffles.ttf" id="1_28flt"]
 [ext_resource type="Theme" uid="uid://dtnd1nhlhvkw0" path="res://Assets/Themes/new_theme.tres" id="2_48xlc"]
 
@@ -124,10 +125,16 @@ func _animate_scale(target_scale: Vector2) -> void:
 	tween.tween_property(self, \"scale\", target_scale, scale_duration)
 "
 
+[sub_resource type="Theme" id="Theme_48xlc"]
+default_font = ExtResource("1_28flt")
+default_font_size = 100
+
 [node name="Main Menu" type="Node2D" unique_id=2063143909]
 script = SubResource("GDScript_hrwy1")
 
 [node name="ColorRect" type="ColorRect" parent="." unique_id=1648866192]
+z_index = -2
+material = ExtResource("1_1ehe0")
 offset_right = 1293.0
 offset_bottom = 729.0
 color = Color(0.36830404, 0.20697582, 0.8892123, 1)
@@ -159,5 +166,24 @@ offset_bottom = 571.0
 theme = ExtResource("2_48xlc")
 text = "OPTIONS"
 script = SubResource("GDScript_bhunq")
+
+[node name="Label" type="Label" parent="." unique_id=1129548421]
+offset_left = 264.0
+offset_top = 112.0
+offset_right = 1027.0
+offset_bottom = 271.0
+theme = SubResource("Theme_48xlc")
+text = "POCKET HARIBOTS"
+
+[node name="ColorRect2" type="ColorRect" parent="." unique_id=1989820954]
+visible = false
+z_index = -1
+y_sort_enabled = true
+offset_left = 320.0
+offset_top = 504.0
+offset_right = 960.0
+offset_bottom = 600.0
+color = Color(0.2509804, 0.2509804, 0.2509804, 0.5176471)
+metadata/_edit_lock_ = true
 
 [connection signal="pressed" from="PlayB" to="PlayB" method="_on_pressed"]

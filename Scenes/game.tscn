@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://pd074hlowi3l"]
 
 [ext_resource type="Theme" uid="uid://dtnd1nhlhvkw0" path="res://Assets/Themes/new_theme.tres" id="1_qxrlw"]
+[ext_resource type="Material" uid="uid://bkb3vfe21eenj" path="res://Shader/new_shader_material.tres" id="2_wowpa"]
 [ext_resource type="Script" uid="uid://devind0y5pcmm" path="res://Scripts/cardButton.gd" id="2_wrm1d"]
 [ext_resource type="Texture2D" uid="uid://b1gmya1qw6rd4" path="res://Assets/CircTimer.png" id="3_wrm1d"]
 [ext_resource type="FontFile" uid="uid://rp0wswqsbjmf" path="res://Assets/Fonts/Super Waffles.ttf" id="4_3dryh"]
@@ -9,19 +10,22 @@
 resource_name = "Main"
 script/source = "extends Node2D
 
+@onready var countdown: Timer = $CountDown
+@onready var cd_label: Label = $CD
 @onready var timer: Timer = $Timer
 @onready var timer_label: Label = $TextureProgressBar/Label
 @onready var circular_bar: TextureProgressBar = $TextureProgressBar
-
 @onready var results_panel: Control = $ResultsCanvas/ResultsPanel
 @onready var correct_label: Label = $ResultsCanvas/ResultsPanel/VBoxContainer/CorrectLabel
 @onready var penalty_label: Label = $ResultsCanvas/ResultsPanel/VBoxContainer/PenaltyLabel
 @onready var final_label: Label = $ResultsCanvas/ResultsPanel/VBoxContainer/FinalScoreLabel
 
-var correct_picks: int = 0
-var wrong_picks: int = 0
-var base_points_per_correct: int = 100
-var penalty_per_wrong: int = 50
+@export var cd_time: float = 3.0
+@export var default_game_time: float = 30.0
+@export var max_elements: int = 5
+@export var spacing: float = 200.0
+@export var start_x: float = 200.0  # X position of the furthest LEFT element
+@export var start_y: float = 250.0  # Y position of the queue line
 
 var babybuster = preload(\"res://Scenes/babybuster.tscn\")
 var popstron = preload(\"res://Scenes/popstron.tscn\")
@@ -30,182 +34,144 @@ var ceo = preload(\"res://Scenes/ceo.tscn\")
 var honeydroid = preload(\"res://Scenes/honeydroid.tscn\")
 var fundyboo = preload(\"res://Scenes/fundyboo.tscn\")
 
-@export var default_game_time: float = 20
-@export var max_elements: int = 5
-@export var spacing: float = 200.0
-@export var start_x: float = 200.0  # X position of the furthest LEFT element
-@export var start_y: float = 250.0  # Y position of the queue line
-
-
 var list = [babybuster, popstron, siborg, ceo, honeydroid, fundyboo]
 var active_queue: Array[Node2D] = []
 var last_spawn = null
 var score = 0
+var correct_picks: int = 0
+var wrong_picks: int = 0
+var base_points_per_correct: int = 100
+var penalty_per_wrong: int = 50
 
 func _ready() -> void:
-	print(\"Hello\")
 	for child in get_tree().root.get_children():
 		if child is CanvasLayer and child != self:
 			child.queue_free()
-	circular_bar.max_value = timer.wait_time
-	circular_bar.min_value = 0.0
+	circular_bar.min_value = default_game_time
+	results_panel.hide()
+	countdown.start(cd_time)
+
+func _on_count_down_timeout() -> void:
+	countdown.stop()
+	cd_label.hide()
 	start_new_game()
-	for i in range(max_elements):
-		spawn_element()
 
 func start_new_game() -> void:
-	# Always set wait_time back to full duration before starting
 	timer.wait_time = default_game_time
 	timer.start(default_game_time)
 	score = 0
 	correct_picks = 0
 	wrong_picks = 0
 	results_panel.hide()
+	circular_bar.value = default_game_time
+	circular_bar.max_value = default_game_time
+	circular_bar.value = default_game_time
+	circular_bar.min_value = 0
+	for i in range(max_elements):
+		spawn_element()
 
 func _process(_delta: float) -> void:
 	if not timer.is_stopped():
 		var time_left: float = timer.time_left
-		
-		# 1. Update circular progress bar value
 		circular_bar.value = time_left
-		
-		# 2. Update label text (formatted to 1 decimal place, e.g., \"5.2s\")
 		timer_label.text = \"%.1f\" % time_left
 	else:
 		circular_bar.value = 0
-		timer_label.text = \"0.0\"
+		timer_label.text = \"%.1f\" % default_game_time
+	if not countdown.is_stopped():
+		cd_label.text = \"%.1f\" % countdown.time_left
+	else:
+		cd_label.text = \"%.1f\" % countdown.time_left
 
 func spawn_element() -> void:
 	var random = list.pick_random()
-	
 	if random == last_spawn and list.size() > 1:
 		var choices = list.duplicate()
 		choices.erase(last_spawn)
 		random = choices.pick_random()
-	
 	last_spawn = random
-	
 	var instance = random.instantiate() as Node2D
 	add_child(instance)
 	active_queue.append(instance)
-	
 	update_positions()
 
 func update_positions() -> void:
-	# Index 0 is placed at start_x (furthest left)
-	# Subsequent items (1, 2, 3...) are placed further to the right
 	for i in range(active_queue.size()):
 		var node = active_queue[i]
-		
 		if i == 0:
-			# Target node: Scale up to 120% and shift slightly upward
 			node.scale = Vector2(1.2, 1.2)
 			node.position = Vector2(start_x, start_y - 15.0)
-			node.z_index = 10 # Draw on top of adjacent nodes
+			node.z_index = 10 
 		else:
-			# Non-target nodes: Default scale and baseline position
 			node.scale = Vector2.ONE
 			node.position = Vector2(start_x + (i * spacing), start_y)
 			node.z_index = 0
 
 func process_furthest_left(required_group: String) -> void:
 	if active_queue.is_empty():
-		print(\"DEBUG: active_queue is empty!\")
 		return
-		
 	var leftmost_node = active_queue[0]
-	
-	# Print exact debug details when a button is clicked
-	print(\"--- BUTTON CLICKED ---\")
-	print(\"Button requested group: \", required_group)
-	print(\"Leftmost Node Name: \", leftmost_node.name)
-	print(\"Leftmost Node Groups: \", leftmost_node.get_groups())
-	
-	# Check children groups as well
 	var child_groups = []
 	for child in leftmost_node.get_children():
 		child_groups.append_array(child.get_groups())
-	print(\"Children Groups: \", child_groups)
-	
 	if node_has_group(leftmost_node, required_group):
-		print(\"MATCH!\")
 		correct_picks += 1
 		active_queue.remove_at(0)
 		leftmost_node.queue_free()
 		spawn_element()
 	else:
-		print(\"NO MATCH!\")
 		wrong_picks += 1
 		deduct_time(2.0)
-	print(\"----------------------\")
 
 func deduct_time(seconds: float) -> void:
 	if timer.is_stopped():
 		return
-		
 	var new_time: float = timer.time_left - seconds
-	
-	# Flash label red briefly
 	var tween = create_tween()
 	timer_label.modulate = Color.RED
 	tween.tween_property(timer_label, \"modulate\", Color.WHITE, 0.3)
-	
 	if new_time <= 0.0:
 		timer.stop()
 		_on_timer_timeout()
 	else:
 		timer.start(new_time)
-	
 
 func show_results_tally() -> void:
-	# Reset text and show overlay
 	correct_label.text = \"Correct Picks: 0\"
 	penalty_label.text = \"Wrong Penalty: 0\"
 	final_label.text = \"Total Score: 0\"
 	results_panel.show()
-	
 	var total_correct_pts = correct_picks * base_points_per_correct
 	var total_penalty_pts = wrong_picks * penalty_per_wrong
 	var final_score = max(0, total_correct_pts - total_penalty_pts)
-
 	var sequence = create_tween().set_parallel(false)
-	
-	# Step 1: Count up Correct Picks
 	sequence.tween_method(
 		func(val: int): 
 			correct_label.text = \"Correct Picks (%d): +%d\" % [correct_picks, val],
 		0, total_correct_pts, 0.8
 	).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	
 	sequence.tween_callback(func(): pop_label(correct_label))
 	sequence.tween_interval(0.3)
-	
-	# Step 2: Count up Penalty Deductions
 	sequence.tween_method(
 		func(val: int): 
 			penalty_label.text = \"Wrong Penalty (%d): -%d\" % [wrong_picks, val],
 		0, total_penalty_pts, 0.6
 	).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	
 	sequence.tween_callback(func(): pop_label(penalty_label))
 	sequence.tween_interval(0.4)
-	
-	# Step 3: Count up Final Total Score
 	sequence.tween_method(
 		func(val: int): 
 			final_label.text = \"FINAL SCORE: %d\" % val,
 		0, final_score, 1.0
 	).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	
 	sequence.tween_callback(func(): pop_label(final_label, 1.3))
-# Juice effect: Scale pop on beat
+
 func pop_label(lbl: Label, scale_factor: float = 1.15) -> void:
 	lbl.pivot_offset = lbl.size / 2.0
 	var pop_tween = create_tween()
 	pop_tween.tween_property(lbl, \"scale\", Vector2.ONE * scale_factor, 0.08)
 	pop_tween.tween_property(lbl, \"scale\", Vector2.ONE, 0.12)
 
-# Checks the root node OR any child node (Sprite2D, Area2D) for the group
 func node_has_group(node: Node, group_name: String) -> bool:
 	if node.is_in_group(group_name):
 		return true
@@ -214,7 +180,6 @@ func node_has_group(node: Node, group_name: String) -> bool:
 			return true
 	return false
 
-# Helper function to check if the node OR its Sprite2D child has the group
 func has_group_recursive(node: Node, group_name: String) -> bool:
 	if node.is_in_group(group_name):
 		return true
@@ -223,32 +188,20 @@ func has_group_recursive(node: Node, group_name: String) -> bool:
 			return true
 	return false
 
-# --- Debug ---
 func _on_retry_pressed() -> void:
-	# 1. Clear active instances
 	for node in active_queue:
 		if is_instance_valid(node):
 			node.queue_free()
 	active_queue.clear()
-	
-	# 2. Re-fill line
-	for i in range(max_elements):
-		spawn_element()
-		
-	# 3. Reset timer back to full default time
 	start_new_game()
 
-# --- Time Out ---
 func _on_timer_timeout() -> void:
-	timer.stop() # Replace with function body.
-	# Loop through every node in active_queue and delete it
+	timer.stop() 
+	timer_label.hide()
 	for node in active_queue:
 		if is_instance_valid(node):
 			node.queue_free()
-			
-	# Clear the array so no references remain
 	active_queue.clear()
-	print(score)
 	show_results_tally()
 
 # --- Button Handlers ---
@@ -257,43 +210,60 @@ func _on_divine_b_pressed() -> void:
 	process_furthest_left(\"Dark\")
 	score += 1
 
-
 func _on_dark_b_pressed() -> void:
 	process_furthest_left(\"Electric\")
 	score += 1
-
 
 func _on_electric_b_pressed() -> void:
 	process_furthest_left(\"Divine\")
 	score += 1
 
-
 func _on_fire_b_pressed() -> void:
 	process_furthest_left(\"Grass\")
 	score += 1
 
-
 func _on_water_b_pressed() -> void:
 	process_furthest_left(\"Fire\")
 	score += 1
-
 
 func _on_grass_b_pressed() -> void:
 	process_furthest_left(\"Water\")
 	score += 1
 "
 
+[sub_resource type="Theme" id="Theme_3dryh"]
+default_font = ExtResource("4_3dryh")
+default_font_size = 80
+
 [sub_resource type="Theme" id="Theme_wowpa"]
 default_font = ExtResource("4_3dryh")
 default_font_size = 100
 
+[sub_resource type="Theme" id="Theme_i6g32"]
+default_font = ExtResource("4_3dryh")
+
 [node name="Main" type="Node2D" unique_id=1413316767]
 script = SubResource("GDScript_g2dxt")
-default_game_time = 30.0
+cd_time = 5.0
+default_game_time = 60.0
 start_x = 230.0
 start_y = 280.0
 
+[node name="CountDown" type="Timer" parent="." unique_id=164770980]
+wait_time = 3.0
+
+[node name="CD" type="Label" parent="." unique_id=886056664]
+z_index = 1
+offset_left = 496.0
+offset_top = 256.0
+offset_right = 784.0
+offset_bottom = 355.0
+theme = SubResource("Theme_3dryh")
+horizontal_alignment = 1
+vertical_alignment = 1
+
 [node name="ColorRect" type="ColorRect" parent="." unique_id=893672062]
+material = ExtResource("2_wowpa")
 offset_top = -5.0
 offset_right = 1297.0
 offset_bottom = 740.0
@@ -307,6 +277,7 @@ offset_right = 40.0
 offset_bottom = 40.0
 
 [node name="Retry" type="Button" parent="Control" unique_id=1424652606]
+visible = false
 layout_mode = 0
 offset_left = 590.0
 offset_top = 33.0
@@ -376,8 +347,6 @@ text = "Electric"
 script = ExtResource("2_wrm1d")
 
 [node name="Timer" type="Timer" parent="." unique_id=2064532764]
-wait_time = 20.0
-autostart = true
 
 [node name="TextureProgressBar" type="TextureProgressBar" parent="." unique_id=261171101]
 offset_left = 17.0
@@ -415,16 +384,21 @@ offset_bottom = 114.0
 
 [node name="ScoreTile" type="Label" parent="ResultsCanvas/ResultsPanel/VBoxContainer" unique_id=1752036453]
 layout_mode = 2
+theme = SubResource("Theme_i6g32")
 
 [node name="CorrectLabel" type="Label" parent="ResultsCanvas/ResultsPanel/VBoxContainer" unique_id=1088320870]
 layout_mode = 2
+theme = SubResource("Theme_i6g32")
 
 [node name="PenaltyLabel" type="Label" parent="ResultsCanvas/ResultsPanel/VBoxContainer" unique_id=1593303973]
 layout_mode = 2
+theme = SubResource("Theme_i6g32")
 
 [node name="FinalScoreLabel" type="Label" parent="ResultsCanvas/ResultsPanel/VBoxContainer" unique_id=490459567]
 layout_mode = 2
+theme = SubResource("Theme_i6g32")
 
+[connection signal="timeout" from="CountDown" to="." method="_on_count_down_timeout"]
 [connection signal="pressed" from="Control/Retry" to="." method="_on_retry_pressed"]
 [connection signal="pressed" from="Control/FireB" to="." method="_on_fire_b_pressed"]
 [connection signal="pressed" from="Control/WaterB" to="." method="_on_water_b_pressed"]
