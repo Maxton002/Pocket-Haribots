@@ -10,8 +10,7 @@
 resource_name = "Main"
 script/source = "extends Node2D
 
-@onready var countdown: Timer = $CountDown
-@onready var cd_label: Label = $CD
+@onready var cards: Control = $Control
 @onready var timer: Timer = $Timer
 @onready var timer_label: Label = $TextureProgressBar/Label
 @onready var circular_bar: TextureProgressBar = $TextureProgressBar
@@ -19,8 +18,8 @@ script/source = "extends Node2D
 @onready var correct_label: Label = $ResultsCanvas/ResultsPanel/VBoxContainer/CorrectLabel
 @onready var penalty_label: Label = $ResultsCanvas/ResultsPanel/VBoxContainer/PenaltyLabel
 @onready var final_label: Label = $ResultsCanvas/ResultsPanel/VBoxContainer/FinalScoreLabel
+@onready var button_label: Button = $ResultsCanvas/ResultsPanel/FinalButton
 
-@export var cd_time: float = 3.0
 @export var default_game_time: float = 30.0
 @export var max_elements: int = 5
 @export var spacing: float = 200.0
@@ -71,30 +70,64 @@ var fundyboo = preload(\"res://Scenes/fundyboo.tscn\")
 var list = [babybuster, popstron, siborg, ceo, honeydroid, fundyboo]
 var active_queue: Array[Node2D] = []
 var last_spawn = null
-var score = 0
+var score: int = 0
 var correct_picks: int = 0
 var wrong_picks: int = 0
 var base_points_per_correct: int = 100
 var penalty_per_wrong: int = 50
+var quota: int = 1000
+var next: bool = false
+var is_in_prep_phase: bool = false
 
 func _ready() -> void:
-	for child in get_tree().root.get_children():
-		if child is CanvasLayer and child != self:
-			child.queue_free()
 	circular_bar.min_value = default_game_time
 	results_panel.hide()
-	countdown.start(cd_time)
-
-func _on_count_down_timeout() -> void:
-	countdown.stop()
-	cd_label.hide()
+	await start_prep_phase(5.0)
 	start_new_game()
+
+func start_prep_phase(prep_seconds: float = 3.0) -> void:
+	is_in_prep_phase = true
+	
+	if has_node(\"PrepLabel\"):
+		$PrepLabel.show()
+	for i in range(int(prep_seconds), 0, -1):
+		if has_node(\"PrepLabel\"):
+			$PrepLabel.text = \"Get Ready! \" + str(i)
+		await get_tree().create_timer(1.0).timeout
+	
+	if has_node(\"PrepLabel\"):
+		$PrepLabel.text = \"GO!\"
+		await get_tree().create_timer(0.5).timeout
+		$PrepLabel.hide()
+
+	is_in_prep_phase = false
+
+func next_game() -> void:
+	is_ghost = false
+	timer.wait_time = default_game_time
+	circular_bar.min_value = default_game_time
+	results_panel.hide()
+	timer_label.show()
+	cards.show()
+	score = 0
+	quota = roundi(quota * 1.25)
+	for instance in active_queue:
+		if is_instance_valid(instance):
+			instance.queue_free()
+	active_queue.clear()
+	await start_prep_phase(3.0)
+	timer.start(default_game_time)
+	for i in range(max_elements):
+		spawn_element()
 
 func start_new_game() -> void:
 	timer.wait_time = default_game_time
 	timer.start(default_game_time)
 	timer_label.show()
+	cards.show()
+	is_ghost = false
 	score = 0
+	quota = 1000
 	correct_picks = 0
 	wrong_picks = 0
 	results_panel.hide()
@@ -113,10 +146,6 @@ func _process(_delta: float) -> void:
 	else:
 		circular_bar.value = 0
 		timer_label.text = \"%.1f\" % default_game_time
-	if not countdown.is_stopped():
-		cd_label.text = \"%.1f\" % countdown.time_left
-	else:
-		cd_label.text = \"%.1f\" % countdown.time_left
 	if not timer.is_stopped() and timer.time_left <= 20 and not is_ghost:
 		is_ghost = true
 		apply_ghost_mode_to_all()
@@ -200,6 +229,13 @@ func show_results_tally() -> void:
 	var total_correct_pts = correct_picks * base_points_per_correct
 	var total_penalty_pts = wrong_picks * penalty_per_wrong
 	var final_score = max(0, total_correct_pts - total_penalty_pts)
+	if final_score >= quota:
+		button_label.text = \"Next Round\"
+		next = true
+	else:
+		button_label.text = \"New Game\"
+		next = false
+	
 	var sequence = create_tween().set_parallel(false)
 	sequence.tween_method(
 		func(val: int): 
@@ -254,6 +290,7 @@ func _on_retry_pressed() -> void:
 func _on_timer_timeout() -> void:
 	timer.stop() 
 	timer_label.hide()
+	cards.hide()
 	for node in active_queue:
 		if is_instance_valid(node):
 			node.queue_free()
@@ -286,6 +323,12 @@ func _on_water_b_pressed() -> void:
 func _on_grass_b_pressed() -> void:
 	process_furthest_left(\"Water\")
 	score += 1
+
+func _on_final_button_pressed() -> void:
+	if next == true: #rougelike selection
+		next_game() #temp
+	else:
+		SceneTransition.change_scene(\"res://Scenes/main_menu.tscn\")
 "
 
 [sub_resource type="Theme" id="Theme_3dryh"]
@@ -296,25 +339,25 @@ default_font_size = 80
 default_font = ExtResource("4_3dryh")
 default_font_size = 100
 
+[sub_resource type="Theme" id="Theme_1l0tm"]
+default_font = ExtResource("4_3dryh")
+default_font_size = 22
+
 [sub_resource type="Theme" id="Theme_i6g32"]
 default_font = ExtResource("4_3dryh")
 
 [node name="Main" type="Node2D" unique_id=1413316767]
 script = SubResource("GDScript_g2dxt")
-cd_time = 5.0
 default_game_time = 60.0
 start_x = 230.0
 start_y = 280.0
 
-[node name="CountDown" type="Timer" parent="." unique_id=164770980]
-wait_time = 3.0
-
-[node name="CD" type="Label" parent="." unique_id=886056664]
+[node name="PrepLabel" type="Label" parent="." unique_id=311973700]
 z_index = 1
-offset_left = 496.0
-offset_top = 256.0
-offset_right = 784.0
-offset_bottom = 355.0
+offset_left = 416.0
+offset_top = 232.0
+offset_right = 875.0
+offset_bottom = 331.0
 theme = SubResource("Theme_3dryh")
 horizontal_alignment = 1
 vertical_alignment = 1
@@ -427,10 +470,19 @@ horizontal_alignment = 1
 [node name="ResultsCanvas" type="CanvasLayer" parent="." unique_id=1104722487]
 
 [node name="ResultsPanel" type="Panel" parent="ResultsCanvas" unique_id=347745670]
+visible = false
 offset_left = 533.0
 offset_top = 215.0
 offset_right = 758.0
 offset_bottom = 388.0
+
+[node name="FinalButton" type="Button" parent="ResultsCanvas/ResultsPanel" unique_id=1792667380]
+layout_mode = 0
+offset_left = 43.0
+offset_top = 193.0
+offset_right = 171.0
+offset_bottom = 233.0
+theme = SubResource("Theme_1l0tm")
 
 [node name="VBoxContainer" type="VBoxContainer" parent="ResultsCanvas/ResultsPanel" unique_id=28839186]
 layout_mode = 0
@@ -455,7 +507,13 @@ theme = SubResource("Theme_i6g32")
 layout_mode = 2
 theme = SubResource("Theme_i6g32")
 
-[connection signal="timeout" from="CountDown" to="." method="_on_count_down_timeout"]
+[node name="Label" type="Label" parent="." unique_id=802666937]
+offset_left = 1184.0
+offset_top = 40.0
+offset_right = 1268.0
+offset_bottom = 63.0
+text = "Type Chart"
+
 [connection signal="pressed" from="Control/Retry" to="." method="_on_retry_pressed"]
 [connection signal="pressed" from="Control/FireB" to="." method="_on_fire_b_pressed"]
 [connection signal="pressed" from="Control/WaterB" to="." method="_on_water_b_pressed"]
@@ -464,3 +522,4 @@ theme = SubResource("Theme_i6g32")
 [connection signal="pressed" from="Control/DarkB" to="." method="_on_dark_b_pressed"]
 [connection signal="pressed" from="Control/ElectricB" to="." method="_on_electric_b_pressed"]
 [connection signal="timeout" from="Timer" to="." method="_on_timer_timeout"]
+[connection signal="pressed" from="ResultsCanvas/ResultsPanel/FinalButton" to="." method="_on_final_button_pressed"]

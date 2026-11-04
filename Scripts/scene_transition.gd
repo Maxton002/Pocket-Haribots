@@ -17,7 +17,7 @@ func change_scene(target_path: String, duration: float = 0.4) -> void:
 	tween_in.tween_property(color_rect, "color:a", 1.0, duration)
 	await tween_in.finished
 	
-	# Change scene
+	# Change scene safely
 	get_tree().change_scene_to_file(target_path)
 	
 	# Small pause for game setup
