@@ -27,6 +27,40 @@ script/source = "extends Node2D
 @export var start_x: float = 200.0  # X position of the furthest LEFT element
 @export var start_y: float = 250.0  # Y position of the queue line
 
+const Ghost_babybuster: Texture2D = preload(\"res://Assets/Haribots/Group 480.png\")
+const Ghost_popstron: Texture2D = preload(\"res://Assets/Haribots/Group 482.png\")
+const Ghost_siborg: Texture2D = preload(\"res://Assets/Haribots/Group 481.png\")
+const Ghost_ceo: Texture2D = preload(\"res://Assets/Haribots/Group 483.png\")
+const Ghost_honeydroid: Texture2D = preload(\"res://Assets/Haribots/Group 484.png\")
+const Ghost_fundyboo: Texture2D = preload(\"res://Assets/Haribots/Group 485.png\")
+
+const Normal_babybuster: Texture2D = preload(\"res://Assets/Haribots/Green 2.png\")
+const Normal_popstron: Texture2D = preload(\"res://Assets/Haribots/Blue 3.png\")
+const Normal_siborg: Texture2D = preload(\"res://Assets/Haribots/Red 2.png\")
+const Normal_ceo: Texture2D = preload(\"res://Assets/Haribots/Main 3.png\")
+const Normal_honeydroid: Texture2D = preload(\"res://Assets/Haribots/Yellow 2.png\")
+const Normal_fundyboo: Texture2D = preload(\"res://Assets/Haribots/FUNDYBOO.png\")
+
+@export var is_ghost = false
+
+@onready var normal_map: Dictionary = {
+	babybuster: Normal_babybuster,
+	popstron: Normal_popstron,
+	siborg: Normal_siborg,
+	ceo: Normal_ceo,
+	honeydroid: Normal_honeydroid,
+	fundyboo: Normal_fundyboo
+}
+
+@onready var ghost_map: Dictionary = {
+	babybuster: Ghost_babybuster,
+	popstron: Ghost_popstron,
+	siborg: Ghost_siborg,
+	ceo: Ghost_ceo,
+	honeydroid: Ghost_honeydroid,
+	fundyboo: Ghost_fundyboo,
+}
+
 var babybuster = preload(\"res://Scenes/babybuster.tscn\")
 var popstron = preload(\"res://Scenes/popstron.tscn\")
 var siborg = preload(\"res://Scenes/siborg.tscn\")
@@ -59,6 +93,7 @@ func _on_count_down_timeout() -> void:
 func start_new_game() -> void:
 	timer.wait_time = default_game_time
 	timer.start(default_game_time)
+	timer_label.show()
 	score = 0
 	correct_picks = 0
 	wrong_picks = 0
@@ -82,6 +117,19 @@ func _process(_delta: float) -> void:
 		cd_label.text = \"%.1f\" % countdown.time_left
 	else:
 		cd_label.text = \"%.1f\" % countdown.time_left
+	if not timer.is_stopped() and timer.time_left <= 20 and not is_ghost:
+		is_ghost = true
+		apply_ghost_mode_to_all()
+
+func apply_ghost_mode_to_all() -> void:
+	for instance in active_queue:
+		if is_instance_valid(instance):
+			if instance.has_meta(\"ghost_texture\"):
+				var new_tex = instance.get_meta(\"ghost_texture\")
+				if instance is Sprite2D:
+					instance.texture = new_tex
+				elif instance.has_node(\"Sprite2D\"):
+					instance.get_node(\"Sprite2D\").texture = new_tex
 
 func spawn_element() -> void:
 	var random = list.pick_random()
@@ -91,6 +139,14 @@ func spawn_element() -> void:
 		random = choices.pick_random()
 	last_spawn = random
 	var instance = random.instantiate() as Node2D
+	var sprite_node: Sprite2D = instance if instance is Sprite2D else instance.get_node_or_null(\"Sprite2D\")
+	if sprite_node:
+		if is_ghost and ghost_map.has(random):
+			sprite_node.texture = ghost_map[random]
+		elif normal_map.has(random):
+			sprite_node.texture = normal_map[random]
+	if ghost_map.has(random):
+		instance.set_meta(\"ghost_texture\", ghost_map[random])
 	add_child(instance)
 	active_queue.append(instance)
 	update_positions()
@@ -203,6 +259,7 @@ func _on_timer_timeout() -> void:
 			node.queue_free()
 	active_queue.clear()
 	show_results_tally()
+	is_ghost = false
 
 # --- Button Handlers ---
 
