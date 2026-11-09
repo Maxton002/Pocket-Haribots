@@ -7,7 +7,6 @@
 [sub_resource type="GDScript" id="GDScript_hrwy1"]
 resource_name = "MainMenu"
 script/source = "extends Node2D
-@onready var game = preload(\"res://Scenes/game.tscn\")
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
@@ -56,7 +55,6 @@ func _animate_scale(target_scale: Vector2) -> void:
 	tween = create_tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tween.tween_property(self, \"scale\", target_scale, scale_duration)
 
-
 func _on_pressed() -> void:
 	SceneTransition.change_scene(\"res://Scenes/game.tscn\")
 "
@@ -91,6 +89,9 @@ func _animate_scale(target_scale: Vector2) -> void:
 		
 	tween = create_tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tween.tween_property(self, \"scale\", target_scale, scale_duration)
+
+func _on_pressed() -> void:
+	pass # Replace with function body.
 "
 
 [sub_resource type="GDScript" id="GDScript_bhunq"]
@@ -187,3 +188,4 @@ color = Color(0.2509804, 0.2509804, 0.2509804, 0.5176471)
 metadata/_edit_lock_ = true
 
 [connection signal="pressed" from="PlayB" to="PlayB" method="_on_pressed"]
+[connection signal="pressed" from="AboutB" to="AboutB" method="_on_pressed"]

@@ -5,6 +5,13 @@
 [ext_resource type="Script" uid="uid://devind0y5pcmm" path="res://Scripts/cardButton.gd" id="2_wrm1d"]
 [ext_resource type="Texture2D" uid="uid://b1gmya1qw6rd4" path="res://Assets/CircTimer.png" id="3_wrm1d"]
 [ext_resource type="FontFile" uid="uid://rp0wswqsbjmf" path="res://Assets/Fonts/Super Waffles.ttf" id="4_3dryh"]
+[ext_resource type="Texture2D" uid="uid://bothbospnpbv2" path="res://Assets/Cards/dark.jpg" id="4_i6g32"]
+[ext_resource type="Texture2D" uid="uid://gfgywas48w6c" path="res://Assets/Cards/fire.jpg" id="6_1l0tm"]
+[ext_resource type="Texture2D" uid="uid://n1fyknery183" path="res://Assets/Cards/water.jpg" id="7_v158k"]
+[ext_resource type="Texture2D" uid="uid://txfktn2uhcow" path="res://Assets/Cards/grass.jpg" id="8_o5yvi"]
+[ext_resource type="Texture2D" uid="uid://dl6obbujn7g2b" path="res://Assets/Cards/divine.jpg" id="9_rku1e"]
+[ext_resource type="Texture2D" uid="uid://cq8eytxk8bru5" path="res://Assets/Cards/electric.jpg" id="10_rfjv2"]
+[ext_resource type="Texture2D" uid="uid://bvv774600x5me" path="res://Assets/Cards/typeChart.png" id="12_rku1e"]
 
 [sub_resource type="GDScript" id="GDScript_g2dxt"]
 resource_name = "Main"
@@ -346,6 +353,41 @@ default_font_size = 22
 [sub_resource type="Theme" id="Theme_i6g32"]
 default_font = ExtResource("4_3dryh")
 
+[sub_resource type="GDScript" id="GDScript_bhunq"]
+resource_name = "typeChart"
+script/source = "extends Button
+
+@export var hover_scale: Vector2 = Vector2(3.5, 3.5)
+@export var scale_duration: float = 0.15
+@export var hover_z_index: int = 20
+
+var default_scale: Vector2 = Vector2.ONE
+var default_z_index: int = 0
+var tween: Tween
+
+func _ready() -> void:
+	default_z_index = z_index
+	
+	# Set pivot to the top-right corner so it scales downward and to the left
+	pivot_offset = Vector2(size.x, 0)
+	resized.connect(func(): pivot_offset = Vector2(size.x, 0))
+
+func _on_mouse_entered() -> void:
+	z_index = hover_z_index
+	_animate_scale(hover_scale)
+
+func _on_mouse_exited() -> void:
+	z_index = default_z_index
+	_animate_scale(default_scale)
+
+func _animate_scale(target_scale: Vector2) -> void:
+	if tween:
+		tween.kill()
+		
+	tween = create_tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_property(self, \"scale\", target_scale, scale_duration)
+"
+
 [node name="Main" type="Node2D" unique_id=1413316767]
 script = SubResource("GDScript_g2dxt")
 default_game_time = 60.0
@@ -386,7 +428,13 @@ offset_bottom = 79.0
 theme = ExtResource("1_qxrlw")
 text = "RETRY"
 
+[node name="Sprite2D" type="Sprite2D" parent="Control/Retry" unique_id=274210690]
+position = Vector2(50, 39.000004)
+scale = Vector2(0.29722223, 0.28884465)
+texture = ExtResource("4_i6g32")
+
 [node name="FireB" type="Button" parent="Control" unique_id=2078168691]
+y_sort_enabled = true
 layout_mode = 0
 offset_left = 252.0
 offset_top = 507.0
@@ -395,6 +443,12 @@ offset_bottom = 676.0
 theme = ExtResource("1_qxrlw")
 text = "Fire"
 script = ExtResource("2_wrm1d")
+
+[node name="Sprite2D" type="Sprite2D" parent="Control/FireB" unique_id=1009569945]
+position = Vector2(103.13052, 150.64125)
+rotation = -0.36201435
+scale = Vector2(0.68333334, 0.72111565)
+texture = ExtResource("6_1l0tm")
 
 [node name="WaterB" type="Button" parent="Control" unique_id=1108039389]
 layout_mode = 0
@@ -406,6 +460,12 @@ theme = ExtResource("1_qxrlw")
 text = "Water"
 script = ExtResource("2_wrm1d")
 
+[node name="Sprite2D" type="Sprite2D" parent="Control/WaterB" unique_id=640149778]
+position = Vector2(64.13054, 111.641266)
+rotation = -0.19691499
+scale = Vector2(0.3354592, 0.34810972)
+texture = ExtResource("7_v158k")
+
 [node name="GrassB" type="Button" parent="Control" unique_id=1054734438]
 layout_mode = 0
 offset_left = 533.0
@@ -415,6 +475,12 @@ offset_bottom = 679.0
 theme = ExtResource("1_qxrlw")
 text = "Grass"
 script = ExtResource("2_wrm1d")
+
+[node name="Sprite2D" type="Sprite2D" parent="Control/GrassB" unique_id=478168309]
+position = Vector2(62.13052, 80.641205)
+rotation = -0.077101655
+scale = Vector2(1.036017, 1.0777439)
+texture = ExtResource("8_o5yvi")
 
 [node name="DivineB" type="Button" parent="Control" unique_id=936766921]
 layout_mode = 0
@@ -426,15 +492,11 @@ theme = ExtResource("1_qxrlw")
 text = "Divine"
 script = ExtResource("2_wrm1d")
 
-[node name="DarkB" type="Button" parent="Control" unique_id=957495085]
-layout_mode = 0
-offset_left = 938.0
-offset_top = 504.0
-offset_right = 1044.0
-offset_bottom = 678.0
-theme = ExtResource("1_qxrlw")
-text = "Dark"
-script = ExtResource("2_wrm1d")
+[node name="Sprite2D" type="Sprite2D" parent="Control/DivineB" unique_id=563178610]
+position = Vector2(86.13053, 88.641235)
+rotation = 0.09471813
+scale = Vector2(0.33474866, 0.34113058)
+texture = ExtResource("9_rku1e")
 
 [node name="ElectricB" type="Button" parent="Control" unique_id=578902193]
 layout_mode = 0
@@ -445,6 +507,28 @@ offset_bottom = 678.0
 theme = ExtResource("1_qxrlw")
 text = "Electric"
 script = ExtResource("2_wrm1d")
+
+[node name="Sprite2D" type="Sprite2D" parent="Control/ElectricB" unique_id=876253832]
+position = Vector2(49.13053, 121.64122)
+rotation = 0.16007333
+scale = Vector2(0.70277786, 0.71065736)
+texture = ExtResource("10_rfjv2")
+
+[node name="DarkB" type="Button" parent="Control" unique_id=957495085]
+layout_mode = 0
+offset_left = 938.0
+offset_top = 504.0
+offset_right = 1044.0
+offset_bottom = 678.0
+theme = ExtResource("1_qxrlw")
+text = "Dark"
+script = ExtResource("2_wrm1d")
+
+[node name="Sprite2D" type="Sprite2D" parent="Control/DarkB" unique_id=1645925056]
+position = Vector2(25.130493, 153.64124)
+rotation = 0.31603843
+scale = Vector2(0.6972221, 0.69073707)
+texture = ExtResource("4_i6g32")
 
 [node name="Timer" type="Timer" parent="." unique_id=2064532764]
 
@@ -507,19 +591,37 @@ theme = SubResource("Theme_i6g32")
 layout_mode = 2
 theme = SubResource("Theme_i6g32")
 
-[node name="Label" type="Label" parent="." unique_id=802666937]
-offset_left = 1184.0
-offset_top = 40.0
-offset_right = 1268.0
-offset_bottom = 63.0
-text = "Type Chart"
+[node name="Button" type="Button" parent="." unique_id=755124106]
+z_index = 5
+offset_left = 1080.0
+offset_top = 56.0
+offset_right = 1224.0
+offset_bottom = 200.0
+script = SubResource("GDScript_bhunq")
+
+[node name="ColorRect" type="ColorRect" parent="Button" unique_id=464872174]
+visible = false
+layout_mode = 0
+offset_left = -32.0
+offset_top = -32.0
+offset_right = 112.0
+offset_bottom = 120.0
+color = Color(0, 0, 0, 0.5529412)
+
+[node name="TypeChart" type="Sprite2D" parent="Button" unique_id=1897536324]
+z_index = 1
+position = Vector2(72, 72)
+scale = Vector2(0.113333315, 0.11567164)
+texture = ExtResource("12_rku1e")
 
 [connection signal="pressed" from="Control/Retry" to="." method="_on_retry_pressed"]
 [connection signal="pressed" from="Control/FireB" to="." method="_on_fire_b_pressed"]
 [connection signal="pressed" from="Control/WaterB" to="." method="_on_water_b_pressed"]
 [connection signal="pressed" from="Control/GrassB" to="." method="_on_grass_b_pressed"]
 [connection signal="pressed" from="Control/DivineB" to="." method="_on_divine_b_pressed"]
-[connection signal="pressed" from="Control/DarkB" to="." method="_on_dark_b_pressed"]
 [connection signal="pressed" from="Control/ElectricB" to="." method="_on_electric_b_pressed"]
+[connection signal="pressed" from="Control/DarkB" to="." method="_on_dark_b_pressed"]
 [connection signal="timeout" from="Timer" to="." method="_on_timer_timeout"]
 [connection signal="pressed" from="ResultsCanvas/ResultsPanel/FinalButton" to="." method="_on_final_button_pressed"]
+[connection signal="mouse_entered" from="Button" to="Button" method="_on_mouse_entered"]
+[connection signal="mouse_exited" from="Button" to="Button" method="_on_mouse_exited"]
