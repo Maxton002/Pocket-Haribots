@@ -193,9 +193,6 @@ func next_game() -> void:
 		spawn_element()
 
 func start_new_game() -> void:
-	max_elements = 1
-	start_x = 640.0
-	start_y = 256.0
 	timer.wait_time = default_game_time
 	timer.start(default_game_time)
 	timer_label.show()
@@ -711,6 +708,7 @@ horizontal_alignment = 1
 [node name="ResultsCanvas" type="CanvasLayer" parent="." unique_id=1104722487]
 
 [node name="ResultsPanel" type="Panel" parent="ResultsCanvas" unique_id=347745670]
+visible = false
 offset_left = 533.0
 offset_top = 215.0
 offset_right = 758.0
