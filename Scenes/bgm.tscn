@@ -1,0 +1,10 @@
+[gd_scene format=3 uid="uid://behslblktobvi"]
+
+[ext_resource type="AudioStream" uid="uid://btcswb7dxraky" path="res://Assets/SFX/Chill.wav" id="1_2kasm"]
+
+[node name="BGM" type="Node2D" unique_id=1006537400]
+
+[node name="AudioStreamPlayer" type="AudioStreamPlayer" parent="." unique_id=1912870953]
+stream = ExtResource("1_2kasm")
+volume_db = -11.718
+autoplay = true
