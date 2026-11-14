@@ -17,6 +17,7 @@
 [ext_resource type="AudioStream" uid="uid://dtckvubowf3h4" path="res://Assets/SFX/Win.mp3" id="15_iivbl"]
 [ext_resource type="AudioStream" uid="uid://d3o6pcaogoq16" path="res://Assets/SFX/Fail.mp3" id="16_7nbq1"]
 [ext_resource type="AudioStream" uid="uid://cpxn2411xrtqh" path="res://Assets/SFX/TimeTicking.mp3" id="17_exi56"]
+[ext_resource type="AudioStream" uid="uid://y8jq64st5rgn" path="res://Assets/SFX/Swap.mp3" id="17_iivbl"]
 [ext_resource type="AudioStream" uid="uid://vc73ga26lh1o" path="res://Assets/SFX/Tick1.mp3" id="18_85qyi"]
 
 [sub_resource type="GDScript" id="GDScript_g2dxt"]
@@ -24,21 +25,22 @@ resource_name = "Main"
 script/source = "extends Node2D
 
 # Nodes & Exports
-@onready var color_rect: ColorRect = ColorRect.new()
+@onready var streak_label: Label = $StreakLabel
 @onready var round_label: Label = $Round
 @onready var quota_label: Label = $Quota
+@onready var note_label: RichTextLabel = $NoteLabel
 @onready var cards: Control = $Control
 @onready var timer: Timer = $Timer
 @onready var timer_label: Label = $TextureProgressBar/Label
 @onready var circular_bar: TextureProgressBar = $TextureProgressBar
+@onready var color_rect: ColorRect = ColorRect.new()
+
 @onready var results_panel: Control = $ResultsCanvas/ResultsPanel
 @onready var correct_label: Label = $ResultsCanvas/ResultsPanel/VBoxContainer/CorrectLabel
 @onready var penalty_label: Label = $ResultsCanvas/ResultsPanel/VBoxContainer/PenaltyLabel
 @onready var last_round_label: Label = $ResultsCanvas/ResultsPanel/VBoxContainer/RoundLabel
 @onready var final_label: Label = $ResultsCanvas/ResultsPanel/VBoxContainer/FinalScoreLabel
 @onready var button_label: Button = $ResultsCanvas/ResultsPanel/FinalButton
-@onready var type_chart_button: Button = $TypeChart
-@onready var streak_label: Label = $StreakLabel
 
 @onready var fire_b: CardButton = $Control/FireB
 @onready var water_b: CardButton = $Control/WaterB
@@ -53,15 +55,27 @@ script/source = "extends Node2D
 @onready var failSFX = $SFX/Fail
 @onready var timeSFX = $SFX/TimeLow
 @onready var cdSFX = $SFX/Countdown
+@onready var swapSFX = $SFX/Swap
 
-@export var default_game_time: float = 30.0
+@export_group(\"Round & Queue Layout\")
+@export var default_game_time: float = 60.0
+@export var base_quota: int = 2000
+@export var ghost_trigger_time: float = 15.0
 @export var max_elements: int = 5
 @export var spacing: float = 200.0
 @export var start_x: float = 200.0
 @export var start_y: float = 250.0
 @export var is_ghost: bool = false
 
-# Resources & Type Tables
+@export_group(\"Modifier Probabilities & Tuning\")
+@export var reverse_chance: float = 0.25
+@export var armor_chance: float = 0.20
+@export var time_bonus_chance: float = 0.12
+@export var time_bonus_amount: float = 2.0
+@export var shuffle_interval: int = 8
+@export var overdrive_duration: float = 5.0
+
+# Resources & Element Tables
 const Ghost_babybuster: Texture2D = preload(\"res://Assets/Haribots/Group 480.png\")
 const Ghost_popstron: Texture2D = preload(\"res://Assets/Haribots/Group 482.png\")
 const Ghost_siborg: Texture2D = preload(\"res://Assets/Haribots/Group 481.png\")
@@ -125,20 +139,27 @@ var active_queue: Array[Node2D] = []
 var last_spawn = null
 
 var score: int = 0
+var quota: int = 2000
 var correct_picks: int = 0
+var overdrive_picks: int = 0
 var wrong_picks: int = 0
 var base_points_per_correct: int = 100
-var penalty_per_wrong: int = 50
-var quota: int = 1000
+var penalty_per_wrong: int = 25
 var rounds: int = 1
 var next: bool = false
 var is_in_prep_phase: bool = false
 
 var streak: int = 0
+var clears_since_shuffle: int = 0
 var is_overdrive: bool = false
+var overdrive_time_left: float = 0.0
 var overdrive_threshold: int = 10
-var reverse_chance: float = 0.25
 var overdrive_pulse_tween: Tween
+
+var button_list: Array[CardButton] = []
+var original_button_positions: Dictionary = {}
+var slot_buttons: Array[CardButton] = []
+var button_elements: Dictionary = {}
 
 # Lifecycle & Round Flow
 func _ready() -> void:
@@ -147,37 +168,110 @@ func _ready() -> void:
 	color_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(color_rect)
 	
-	# Make circular bar full and visible immediately before countdown starts
-	circular_bar.min_value = 0
+	button_list = [fire_b, water_b, grass_b, divine_b, electric_b, dark_b]
+	slot_buttons = button_list.duplicate()
+	button_elements = {
+		fire_b: \"Fire\",
+		water_b: \"Water\",
+		grass_b: \"Grass\",
+		divine_b: \"Divine\",
+		electric_b: \"Electric\",
+		dark_b: \"Dark\"
+	}
+	for btn in button_list:
+		if is_instance_valid(btn):
+			original_button_positions[btn] = btn.position
+	
+	# Set min/max before value so Godot doesn't clamp the progress bar
+	circular_bar.min_value = 0.0
 	circular_bar.max_value = default_game_time
 	circular_bar.value = default_game_time
-	circular_bar.show()
 	timer_label.text = \"%.1f\" % default_game_time
-	timer_label.show()
 	
+	quota = base_quota
+	quota_label.text = \"Quota: \" + str(quota)
+	round_label.text = \"Round - \" + str(rounds)
 	results_panel.hide()
+	streak_label.hide()
+	update_notes_ui()
+	
 	await start_prep_phase(5.0)
 	start_new_game()
 
-func _process(_delta: float) -> void:
-	if streak > 0:
-		streak_label.show()
-		streak_label.text = \"STREAK: %dx\" % streak
-	else:
-		streak_label.hide()
+func _unhandled_input(event: InputEvent) -> void:
+	if is_in_prep_phase or timer.is_stopped():
+		return
+	if event is InputEventKey and event.pressed and not event.echo:
+		# Showcase / playtest shortcuts (active only in debug/editor builds)
+		if OS.is_debug_build():
+			match event.keycode:
+				KEY_N:
+					timer.stop()
+					next_game()
+					get_viewport().set_input_as_handled()
+					return
+				KEY_O:
+					streak = overdrive_threshold
+					activate_overdrive()
+					get_viewport().set_input_as_handled()
+					return
+				KEY_G:
+					is_ghost = true
+					timeSFX.play()
+					apply_ghost_mode_to_all()
+					get_viewport().set_input_as_handled()
+					return
+				KEY_S:
+					shuffle_two_buttons()
+					get_viewport().set_input_as_handled()
+					return
+				KEY_T:
+					timer.start(3.0)
+					get_viewport().set_input_as_handled()
+					return
+
+		var slot_idx: int = -1
+		match event.keycode:
+			KEY_1, KEY_KP_1: slot_idx = 0
+			KEY_2, KEY_KP_2: slot_idx = 1
+			KEY_3, KEY_KP_3: slot_idx = 2
+			KEY_4, KEY_KP_4: slot_idx = 3
+			KEY_5, KEY_KP_5: slot_idx = 4
+			KEY_6, KEY_KP_6: slot_idx = 5
 		
+		if slot_idx >= 0 and slot_idx < slot_buttons.size():
+			var btn: CardButton = slot_buttons[slot_idx]
+			if is_instance_valid(btn) and button_elements.has(btn):
+				animate_button_press(btn)
+				process_furthest_left(button_elements[btn])
+				get_viewport().set_input_as_handled()
+
+func _process(delta: float) -> void:
+	if is_in_prep_phase:
+		circular_bar.min_value = 0.0
+		circular_bar.max_value = default_game_time
+		circular_bar.value = default_game_time
+		timer_label.text = \"%.1f\" % default_game_time
+		return
+
 	if not timer.is_stopped():
 		var time_left: float = timer.time_left
 		circular_bar.value = time_left
 		timer_label.text = \"%.1f\" % time_left
-	else:
-		circular_bar.value = default_game_time
-		timer_label.text = \"%.1f\" % default_game_time
 		
-	if not timer.is_stopped() and timer.time_left <= 20 and not is_ghost:
-		is_ghost = true
-		timeSFX.play()
-		apply_ghost_mode_to_all()
+		if is_overdrive:
+			overdrive_time_left -= delta
+			if overdrive_time_left <= 0.0:
+				end_overdrive()
+		
+		# Panic phase: Ghost Mode activates in the final seconds of Round 2+
+		if rounds >= 2 and time_left <= ghost_trigger_time and not is_ghost:
+			is_ghost = true
+			timeSFX.play()
+			apply_ghost_mode_to_all()
+	else:
+		circular_bar.value = 0.0
+		timer_label.text = \"0.0\"
 
 func start_prep_phase(prep_seconds: float = 3.0) -> void:
 	is_in_prep_phase = true
@@ -197,47 +291,40 @@ func start_prep_phase(prep_seconds: float = 3.0) -> void:
 	is_in_prep_phase = false
 	cdSFX.stop()
 
-# Resets all game variables, counters, and timers back to Round 1 defaults.
 func start_new_game() -> void:
-	color_rect.color = Color(0, 0, 0, 0)
-	if has_node(\"RoundTransition\"):
-		$RoundTransition.hide()
-		
-	# Make circular bar and timer label full and visible immediately
-	circular_bar.min_value = 0
+	circular_bar.min_value = 0.0
 	circular_bar.max_value = default_game_time
 	circular_bar.value = default_game_time
-	circular_bar.show()
-	timer_label.text = \"%.1f\" % default_game_time
-	timer_label.show()
 	
-	type_chart_button.show()
+	timer.wait_time = default_game_time
+	timer.start(default_game_time)
+	timer_label.show()
+	circular_bar.show()
 	cards.show()
 	results_panel.hide()
 	
 	is_ghost = false
 	is_overdrive = false
+	overdrive_time_left = 0.0
+	streak = 0
+	clears_since_shuffle = 0
+	score = 0
+	rounds = 1
+	quota = base_quota
+	base_points_per_correct = 100
+	penalty_per_wrong = 25
 	max_elements = 5
 	start_x = 200.0
 	start_y = 250.0
-	
-	streak = 0
-	streak_label.hide()
-	
-	score = 0
-	quota = 1000
-	base_points_per_correct = 100
-	penalty_per_wrong = 50
-	reverse_chance = 0.0
-	rounds = 1
 	correct_picks = 0
+	overdrive_picks = 0
 	wrong_picks = 0
 	
-	round_label.text = \"Round - 1\"
+	round_label.text = \"Round - \" + str(rounds)
 	quota_label.text = \"Quota: \" + str(quota)
-	
-	timer.wait_time = default_game_time
-	timer.start(default_game_time)
+	reset_button_positions()
+	update_streak_ui()
+	update_notes_ui()
 	
 	for i in range(max_elements):
 		spawn_element()
@@ -246,52 +333,54 @@ func next_game() -> void:
 	rounds += 1
 	round_label.text = \"Round - \" + str(rounds)
 	
+	# Round difficulty escalation: shrink lookahead queue & enable permanent Ghost Mode at Round 4+
 	if rounds >= 4:
 		is_ghost = true
-		max_elements = 1
-		start_x = 640.0
-		start_y = 256.0
+		max_elements = 3
+		start_x = 340.0
+		start_y = 250.0
 	elif rounds == 3:
 		is_ghost = false
-		max_elements = 1
-		start_x = 640.0
-		start_y = 256.0
+		max_elements = 4
+		start_x = 340.0
+		start_y = 250.0
 	elif rounds == 2:
 		is_ghost = false
-		max_elements = 3
+		max_elements = 4
+		start_x = 260.0
+		start_y = 250.0
 	else:
 		is_ghost = false
 		max_elements = 5
+		start_x = 200.0
+		start_y = 250.0
 		
-	color_rect.color = Color(0, 0, 0, 0)
-	if has_node(\"RoundTransition\"):
-		$RoundTransition.hide()
-	
-	results_panel.hide()
-	circular_bar.show()
-	timer_label.show()
-	type_chart_button.show()
-	cards.show()
-	
-	# Keep min_value at 0 so the bar renders properly in Round 2+
-	circular_bar.min_value = 0
+	timer.wait_time = default_game_time
+	circular_bar.min_value = 0.0
 	circular_bar.max_value = default_game_time
 	circular_bar.value = default_game_time
-	timer_label.text = \"%.1f\" % default_game_time
-	timer.wait_time = default_game_time
+	results_panel.hide()
+	timer_label.show()
+	circular_bar.show()
+	cards.show()
 	
 	score = 0
-	correct_picks = 0
-	wrong_picks = 0
 	streak = 0
-	update_streak_ui()
+	clears_since_shuffle = 0
+	correct_picks = 0
+	overdrive_picks = 0
+	wrong_picks = 0
 	is_overdrive = false
-	$ColorRect.modulate = Color.WHITE
+	overdrive_time_left = 0.0
+	reset_button_positions()
+	update_streak_ui()
+	update_notes_ui()
 	
-	quota = roundi(1000 * pow(1.38, rounds - 1))
-	base_points_per_correct = roundi(100 * pow(1.22, rounds - 1))
-	penalty_per_wrong = roundi(50 * pow(1.45, rounds - 1))
-	reverse_chance = clampf(0.15 + (rounds * 0.08), 0.0, 0.50)
+	# Scale quota and point values by 1.25x each round
+	var multiplier: float = pow(1.25, rounds - 1)
+	quota = roundi(base_quota * multiplier)
+	base_points_per_correct = roundi(100 * multiplier)
+	penalty_per_wrong = roundi(25 * multiplier)
 	quota_label.text = \"Quota: \" + str(quota)
 	
 	for instance in active_queue:
@@ -334,19 +423,47 @@ func spawn_element() -> void:
 	active_queue.append(instance)
 	update_positions()
 
-# Applies Reversed modifier (upside-down + purple tint) in Round 2+
 func apply_card_modifiers(card_node: Node2D, element_name: String) -> void:
 	card_node.set_meta(\"element\", element_name)
+	card_node.set_meta(\"hp\", 1)
+	card_node.set_meta(\"is_reversed\", false)
+	card_node.set_meta(\"is_time_bonus\", false)
+	card_node.set_meta(\"base_scale\", Vector2.ONE)
+	card_node.rotation_degrees = 0.0
+	card_node.modulate = Color.WHITE
 	
-	var is_rev: bool = (rounds >= 2) and (randf() < reverse_chance)
-	card_node.set_meta(\"is_reversed\", is_rev)
-	
-	if is_rev:
+	var roll: float = randf()
+	if rounds >= 2 and roll < reverse_chance:
+		card_node.set_meta(\"is_reversed\", true)
 		card_node.rotation_degrees = 180.0
-		card_node.modulate = Color(0.85, 0.55, 1.0)
+		_start_reversed_anim(card_node)
+	elif rounds >= 2 and roll < (reverse_chance + armor_chance):
+		card_node.set_meta(\"hp\", 2)
+		card_node.set_meta(\"base_scale\", Vector2(1.12, 0.92))
+		card_node.modulate = Color(0.55, 0.55, 0.65)
+	elif roll < (reverse_chance + armor_chance + time_bonus_chance):
+		card_node.set_meta(\"is_time_bonus\", true)
+		_start_time_bonus_anim(card_node)
+
+func _start_reversed_anim(card_node: Node2D) -> void:
+	var target: Node2D = card_node if card_node is Sprite2D else card_node.get_node_or_null(\"Sprite2D\")
+	if target and target != card_node:
+		var float_tween = card_node.create_tween().set_loops()
+		float_tween.tween_property(target, \"position:y\", target.position.y - 10.0, 0.4).set_trans(Tween.TRANS_SINE)
+		float_tween.tween_property(target, \"position:y\", target.position.y + 10.0, 0.4).set_trans(Tween.TRANS_SINE)
 	else:
-		card_node.rotation_degrees = 0.0
-		card_node.modulate = Color.WHITE
+		var pulse_tween = card_node.create_tween().set_loops()
+		pulse_tween.tween_property(card_node, \"skew\", 0.12, 0.35).set_trans(Tween.TRANS_SINE)
+		pulse_tween.tween_property(card_node, \"skew\", -0.12, 0.35).set_trans(Tween.TRANS_SINE)
+
+func _start_time_bonus_anim(card_node: Node2D) -> void:
+	var glow_tween = card_node.create_tween().set_loops()
+	glow_tween.tween_property(card_node, \"modulate\", Color(1.65, 1.55, 1.15), 0.35).set_trans(Tween.TRANS_SINE)
+	glow_tween.tween_property(card_node, \"modulate\", Color(1.0, 1.0, 1.0), 0.35).set_trans(Tween.TRANS_SINE)
+	
+	var tilt_tween = card_node.create_tween().set_loops()
+	tilt_tween.tween_property(card_node, \"rotation_degrees\", 8.0, 0.25).set_trans(Tween.TRANS_SINE)
+	tilt_tween.tween_property(card_node, \"rotation_degrees\", -8.0, 0.25).set_trans(Tween.TRANS_SINE)
 
 func apply_ghost_mode_to_all() -> void:
 	for instance in active_queue:
@@ -362,41 +479,58 @@ func update_positions() -> void:
 		var node = active_queue[i]
 		if not is_instance_valid(node):
 			continue
+		var base_s: Vector2 = node.get_meta(\"base_scale\", Vector2.ONE)
 		if i == 0:
-			node.scale = Vector2(1.2, 1.2)
+			node.scale = base_s * 1.2
 			node.position = Vector2(start_x, start_y - 15.0)
 			node.z_index = 10
 		else:
-			node.scale = Vector2.ONE
+			node.scale = base_s
 			node.position = Vector2(start_x + (i * spacing), start_y)
 			node.z_index = 0
 
 # Matching, Streaks & Overdrive
 func process_furthest_left(played_element: String) -> void:
-	if active_queue.is_empty():
+	if is_in_prep_phase or active_queue.is_empty():
 		return
 		
 	var target_node = active_queue[0]
 	var target_element: String = target_node.get_meta(\"element\")
 	var is_rev: bool = target_node.get_meta(\"is_reversed\", false)
 	
-	# Overdrive bypasses type rules and auto-clears any element
+	# Overdrive bypasses type rules, breaks armor in 1 hit, and auto-clears
 	if is_overdrive:
 		_handle_match_success(target_node, true)
 		return
 	
 	var required_element: String = LOSES_TO_MAP[target_element] if is_rev else BEATS_MAP[target_element]
 	if played_element == required_element:
-		_handle_match_success(target_node, false)
+		var current_hp: int = target_node.get_meta(\"hp\", 1)
+		if current_hp > 1:
+			_handle_armor_crack(target_node, current_hp - 1)
+		else:
+			_handle_match_success(target_node, false)
 	else:
 		_handle_match_fail()
+
+func _handle_armor_crack(target_node: Node2D, remaining_hp: int) -> void:
+	target_node.set_meta(\"hp\", remaining_hp)
+	target_node.set_meta(\"base_scale\", Vector2.ONE)
+	target_node.modulate = Color.WHITE
+	correctSFX.pitch_scale = 0.85
+	correctSFX.play()
+	
+	var tween = create_tween()
+	tween.tween_property(target_node, \"scale\", Vector2(1.4, 1.0), 0.06)
+	tween.tween_property(target_node, \"scale\", Vector2(1.2, 1.2), 0.1)
 
 func _handle_match_success(target_node: Node2D, overdrive_active: bool) -> void:
 	correct_picks += 1
 	streak += 1
-	update_streak_ui()
+	clears_since_shuffle += 1
 	
 	if overdrive_active:
+		overdrive_picks += 1
 		correctSFX.pitch_scale = 1.35
 		score += base_points_per_correct * 2
 	else:
@@ -405,7 +539,12 @@ func _handle_match_success(target_node: Node2D, overdrive_active: bool) -> void:
 		if streak >= overdrive_threshold:
 			activate_overdrive()
 			
+	if target_node.get_meta(\"is_time_bonus\", false):
+		add_time(time_bonus_amount)
+			
 	correctSFX.play()
+	update_streak_ui()
+	
 	active_queue.pop_front()
 	target_node.queue_free()
 	
@@ -413,34 +552,106 @@ func _handle_match_success(target_node: Node2D, overdrive_active: bool) -> void:
 		spawn_element()
 		
 	update_positions()
+	
+	# Glitch mechanic: swap two buttons periodically in Round 3+, paused during Overdrive
+	if rounds >= 3 and not is_overdrive and clears_since_shuffle >= shuffle_interval:
+		clears_since_shuffle = 0
+		shuffle_two_buttons()
 
 func _handle_match_fail() -> void:
 	wrong_picks += 1
 	streak = 0
-	update_streak_ui() # Hides StreakLabel immediately when broken
 	wrongSFX.play()
-	deduct_time(1.5)
+	
 	if is_overdrive:
 		end_overdrive()
+	else:
+		update_streak_ui()
+		
+	deduct_time(2.0)
+
+func shuffle_two_buttons() -> void:
+	if slot_buttons.size() < 2:
+		return
+	var slot_a: int = randi() % slot_buttons.size()
+	var slot_b: int = randi() % slot_buttons.size()
+	while slot_b == slot_a:
+		slot_b = randi() % slot_buttons.size()
+		
+	var btn_a: CardButton = slot_buttons[slot_a]
+	var btn_b: CardButton = slot_buttons[slot_b]
+	
+	# Keep keys 1-6 synced to the new visual positions and preserve left-to-right draw overlap
+	slot_buttons[slot_a] = btn_b
+	slot_buttons[slot_b] = btn_a
+	var idx_a: int = btn_a.get_index()
+	var idx_b: int = btn_b.get_index()
+	cards.move_child(btn_a, idx_b)
+	cards.move_child(btn_b, idx_a)
+	
+	var pos_a: Vector2 = btn_a.position
+	var pos_b: Vector2 = btn_b.position
+	
+	swapSFX.play()
+	
+	# Flash both the button and its child Sprite2D so button hover states don't override the yellow highlight
+	for btn in [btn_a, btn_b]:
+		btn.modulate = Color(1.8, 1.5, 0.2)
+		btn.scale = Vector2(1.18, 1.18)
+		var spr: Sprite2D = btn.get_node_or_null(\"Sprite2D\")
+		if spr:
+			spr.modulate = Color(1.8, 1.5, 0.2)
+	
+	var tween = create_tween().set_parallel(true).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_property(btn_a, \"position\", pos_b, 0.25)
+	tween.tween_property(btn_b, \"position\", pos_a, 0.25)
+	tween.tween_property(btn_a, \"modulate\", Color.WHITE, 0.55)
+	tween.tween_property(btn_b, \"modulate\", Color.WHITE, 0.55)
+	tween.tween_property(btn_a, \"scale\", Vector2.ONE, 0.25)
+	tween.tween_property(btn_b, \"scale\", Vector2.ONE, 0.25)
+	
+	for btn in [btn_a, btn_b]:
+		var spr: Sprite2D = btn.get_node_or_null(\"Sprite2D\")
+		if spr:
+			tween.tween_property(spr, \"modulate\", Color.WHITE, 0.55)
+
+func reset_button_positions() -> void:
+	slot_buttons = button_list.duplicate()
+	for btn in button_list:
+		if is_instance_valid(btn) and original_button_positions.has(btn):
+			cards.move_child(btn, -1)
+			btn.position = original_button_positions[btn]
+			btn.modulate = Color.WHITE
+			btn.scale = Vector2.ONE
+			var spr: Sprite2D = btn.get_node_or_null(\"Sprite2D\")
+			if spr:
+				spr.modulate = Color.WHITE
 
 func activate_overdrive() -> void:
 	is_overdrive = true
+	overdrive_time_left = overdrive_duration
 	update_streak_ui()
 	
 	var tween = create_tween()
 	tween.tween_property(color_rect, \"color\", Color(1.0, 0.75, 0.2, 0.15), 0.2)
-	
-	await get_tree().create_timer(5.0).timeout
-	if is_overdrive:
-		end_overdrive()
 
 func end_overdrive() -> void:
 	is_overdrive = false
+	overdrive_time_left = 0.0
 	streak = 0
 	update_streak_ui()
 	
 	var tween = create_tween()
 	tween.tween_property(color_rect, \"color\", Color(0, 0, 0, 0), 0.3)
+
+func add_time(seconds: float) -> void:
+	if timer.is_stopped():
+		return
+	var new_time: float = min(timer.time_left + seconds, default_game_time)
+	var tween = create_tween()
+	timer_label.modulate = Color.GREEN
+	tween.tween_property(timer_label, \"modulate\", Color.WHITE, 0.3)
+	timer.start(new_time)
 
 func deduct_time(seconds: float) -> void:
 	if timer.is_stopped():
@@ -456,14 +667,28 @@ func deduct_time(seconds: float) -> void:
 	else:
 		timer.start(new_time)
 
-# UI, Animations & Results
+# UI, Animations & Results Tally
+func update_notes_ui() -> void:
+	if not is_instance_valid(note_label):
+		return
+	
+	# Progressive reveal: dim modifiers until their unlock round
+	var cw_color: String = \"#ffe64d\"
+	var rev_color: String = \"#4de6ff\" if rounds >= 2 else \"#ffffff44\"
+	var arm_color: String = \"#b3bfd9\" if rounds >= 2 else \"#ffffff44\"
+	var ghost_color: String = \"#bf80ff\" if rounds >= 2 else \"#ffffff44\"
+	
+	note_label.text = (
+		\"[color=%s]CLOCKWORK: +2.0s Time[/color]\\n\" % cw_color +
+		\"[color=%s]REVERSED: Flip Matchup[/color]\\n\" % rev_color +
+		\"[color=%s]ARMORED: 2 Hits[/color]\\n\" % arm_color +
+		\"[color=%s]GHOST: Silhouette Only[/color]\" % ghost_color
+	)
+
 func update_streak_ui() -> void:
-	if streak > 0:
-		streak_label.text = \"STREAK: %dx\" % streak
-		streak_label.show()
-	else:
-		streak_label.text = \"\"
+	if streak == 0 and not is_overdrive:
 		streak_label.hide()
+		return
 		
 	streak_label.show()
 	streak_label.pivot_offset = streak_label.size / 2.0
@@ -503,17 +728,17 @@ func _stop_overdrive_pulse() -> void:
 		overdrive_pulse_tween = null
 	streak_label.scale = Vector2.ONE
 
-# Uses actual earned score (including 2x Overdrive bonuses) minus penalties to check quota.
 func show_results_tally() -> void:
 	timeSFX.stop()
+	streak_label.hide()
 	correct_label.text = \"Correct Picks: 0\"
 	penalty_label.text = \"Wrong Penalty: 0\"
 	last_round_label.text = \"Last Round: 0\"
-	final_label.text = \"FINAL SCORE: 0\"
+	final_label.text = \"Total Score: 0\"
 	results_panel.show()
 	
-	# 'score' already includes 2x Overdrive points earned during the round
-	var total_correct_pts = score
+	# Overdrive picks count double toward the tallied score
+	var total_correct_pts = (correct_picks + overdrive_picks) * base_points_per_correct
 	var total_penalty_pts = wrong_picks * penalty_per_wrong
 	var last_round = rounds
 	var final_score = max(0, total_correct_pts - total_penalty_pts)
@@ -528,7 +753,6 @@ func show_results_tally() -> void:
 		failSFX.play()
 	
 	var sequence = create_tween().set_parallel(false)
-	
 	sequence.tween_method(
 		func(val: int): correct_label.text = \"Correct Picks (%d): +%d\" % [correct_picks, val],
 		0, total_correct_pts, 0.8
@@ -573,8 +797,8 @@ func _on_timer_timeout() -> void:
 	timer_label.hide()
 	circular_bar.hide()
 	cards.hide()
-	type_chart_button.hide()
 	is_overdrive = false
+	overdrive_time_left = 0.0
 	_stop_overdrive_pulse()
 	
 	for node in active_queue:
@@ -626,54 +850,6 @@ func _on_grass_b_pressed() -> void:
 default_font = ExtResource("4_3dryh")
 default_font_size = 80
 
-[sub_resource type="InputEventKey" id="InputEventKey_85qyi"]
-device = -1
-keycode = 49
-unicode = 49
-
-[sub_resource type="Shortcut" id="Shortcut_7nbq1"]
-events = [SubResource("InputEventKey_85qyi")]
-
-[sub_resource type="InputEventKey" id="InputEventKey_iivbl"]
-device = -1
-keycode = 50
-unicode = 50
-
-[sub_resource type="Shortcut" id="Shortcut_vm72l"]
-events = [SubResource("InputEventKey_iivbl")]
-
-[sub_resource type="InputEventKey" id="InputEventKey_7nbq1"]
-device = -1
-keycode = 51
-unicode = 51
-
-[sub_resource type="Shortcut" id="Shortcut_exi56"]
-events = [SubResource("InputEventKey_7nbq1")]
-
-[sub_resource type="InputEventKey" id="InputEventKey_exi56"]
-device = -1
-keycode = 52
-unicode = 52
-
-[sub_resource type="Shortcut" id="Shortcut_22asu"]
-events = [SubResource("InputEventKey_exi56")]
-
-[sub_resource type="InputEventKey" id="InputEventKey_7t8sx"]
-device = -1
-keycode = 53
-unicode = 53
-
-[sub_resource type="Shortcut" id="Shortcut_81klo"]
-events = [SubResource("InputEventKey_7t8sx")]
-
-[sub_resource type="InputEventKey" id="InputEventKey_mg4q0"]
-device = -1
-keycode = 54
-unicode = 54
-
-[sub_resource type="Shortcut" id="Shortcut_cwurv"]
-events = [SubResource("InputEventKey_mg4q0")]
-
 [sub_resource type="Theme" id="Theme_wowpa"]
 default_font = ExtResource("4_3dryh")
 default_font_size = 100
@@ -720,8 +896,14 @@ func _animate_scale(target_scale: Vector2) -> void:
 	tween.tween_property(self, \"scale\", target_scale, scale_duration)
 "
 
+[sub_resource type="Theme" id="Theme_85qyi"]
+default_font = ExtResource("4_3dryh")
+default_font_size = 18
+
 [node name="Main" type="Node2D" unique_id=1413316767]
 script = SubResource("GDScript_g2dxt")
+default_game_time = 45.0
+ghost_trigger_time = 12.0
 start_x = 230.0
 start_y = 280.0
 
@@ -772,13 +954,11 @@ offset_top = 507.0
 offset_right = 358.0
 offset_bottom = 676.0
 theme = ExtResource("1_qxrlw")
-shortcut = SubResource("Shortcut_7nbq1")
 text = "Fire"
 script = ExtResource("2_wrm1d")
 
 [node name="Sprite2D" type="Sprite2D" parent="Control/FireB" unique_id=1009569945]
-position = Vector2(103.13052, 150.64125)
-rotation = -0.36201435
+position = Vector2(44, 101.000015)
 scale = Vector2(0.68333334, 0.72111565)
 texture = ExtResource("6_1l0tm")
 
@@ -789,13 +969,11 @@ offset_top = 506.0
 offset_right = 499.0
 offset_bottom = 678.0
 theme = ExtResource("1_qxrlw")
-shortcut = SubResource("Shortcut_vm72l")
 text = "Water"
 script = ExtResource("2_wrm1d")
 
 [node name="Sprite2D" type="Sprite2D" parent="Control/WaterB" unique_id=640149778]
-position = Vector2(64.13054, 111.641266)
-rotation = -0.19691499
+position = Vector2(45, 102.00003)
 scale = Vector2(0.3354592, 0.34810972)
 texture = ExtResource("7_v158k")
 
@@ -806,13 +984,11 @@ offset_top = 505.0
 offset_right = 639.0
 offset_bottom = 679.0
 theme = ExtResource("1_qxrlw")
-shortcut = SubResource("Shortcut_exi56")
 text = "Grass"
 script = ExtResource("2_wrm1d")
 
 [node name="Sprite2D" type="Sprite2D" parent="Control/GrassB" unique_id=478168309]
-position = Vector2(62.13052, 80.641205)
-rotation = -0.077101655
+position = Vector2(35, 102.99997)
 scale = Vector2(1.036017, 1.0777439)
 texture = ExtResource("8_o5yvi")
 
@@ -823,13 +999,11 @@ offset_top = 505.0
 offset_right = 774.0
 offset_bottom = 679.0
 theme = ExtResource("1_qxrlw")
-shortcut = SubResource("Shortcut_22asu")
 text = "Divine"
 script = ExtResource("2_wrm1d")
 
 [node name="Sprite2D" type="Sprite2D" parent="Control/DivineB" unique_id=563178610]
-position = Vector2(86.13053, 88.641235)
-rotation = 0.09471813
+position = Vector2(50.99998, 103)
 scale = Vector2(0.33474866, 0.34113058)
 texture = ExtResource("9_rku1e")
 
@@ -840,14 +1014,11 @@ offset_top = 504.0
 offset_right = 918.0
 offset_bottom = 678.0
 theme = ExtResource("1_qxrlw")
-shortcut = SubResource("Shortcut_81klo")
 text = "Electric"
-flat = true
 script = ExtResource("2_wrm1d")
 
 [node name="Sprite2D" type="Sprite2D" parent="Control/ElectricB" unique_id=876253832]
-position = Vector2(49.13053, 121.64122)
-rotation = 0.16007333
+position = Vector2(45.999985, 104.000015)
 scale = Vector2(0.70277786, 0.71065736)
 texture = ExtResource("10_rfjv2")
 
@@ -858,13 +1029,11 @@ offset_top = 504.0
 offset_right = 1044.0
 offset_bottom = 678.0
 theme = ExtResource("1_qxrlw")
-shortcut = SubResource("Shortcut_cwurv")
 text = "Dark"
 script = ExtResource("2_wrm1d")
 
 [node name="Sprite2D" type="Sprite2D" parent="Control/DarkB" unique_id=1645925056]
-position = Vector2(25.130493, 153.64124)
-rotation = 0.31603843
+position = Vector2(38, 96)
 scale = Vector2(0.6972221, 0.69073707)
 texture = ExtResource("4_i6g32")
 
@@ -961,7 +1130,7 @@ offset_top = 16.0
 offset_right = 768.0
 offset_bottom = 112.0
 theme = ExtResource("1_qxrlw")
-text = "Quota: 1000"
+text = "Quota: 2000"
 horizontal_alignment = 1
 vertical_alignment = 1
 uppercase = true
@@ -993,6 +1162,11 @@ stream = ExtResource("15_iivbl")
 [node name="Fail" type="AudioStreamPlayer" parent="SFX" unique_id=1908995624]
 stream = ExtResource("16_7nbq1")
 
+[node name="Swap" type="AudioStreamPlayer" parent="SFX" unique_id=1918164307]
+stream = ExtResource("17_iivbl")
+volume_db = -21.81
+pitch_scale = 1.5
+
 [node name="TimeLow" type="AudioStreamPlayer" parent="SFX" unique_id=2019758784]
 stream = ExtResource("17_exi56")
 parameters/looping = true
@@ -1010,6 +1184,19 @@ offset_bottom = 115.0
 theme = ExtResource("1_qxrlw")
 text = "Streak: 1x"
 horizontal_alignment = 1
+
+[node name="NoteLabel" type="RichTextLabel" parent="." unique_id=235213626]
+offset_left = 732.0
+offset_top = 32.0
+offset_right = 1072.0
+offset_bottom = 176.0
+theme = SubResource("Theme_85qyi")
+bbcode_enabled = true
+text = "CLOCKWORK: +2.0s Time!
+UPSIDE-DOWN: Reverse the Matchup!
+ARMORED: 2 Hits Required!
+GHOST MODE: Silhouette Only!"
+horizontal_alignment = 2
 
 [connection signal="pressed" from="Control/Retry" to="." method="_on_retry_pressed"]
 [connection signal="pressed" from="Control/FireB" to="." method="_on_fire_b_pressed"]
