@@ -24,7 +24,6 @@ resource_name = "Main"
 script/source = "extends Node2D
 
 # Nodes & Exports
-@onready var streak_label: Label = $StreakLabel
 @onready var color_rect: ColorRect = ColorRect.new()
 @onready var round_label: Label = $Round
 @onready var quota_label: Label = $Quota
@@ -38,6 +37,8 @@ script/source = "extends Node2D
 @onready var last_round_label: Label = $ResultsCanvas/ResultsPanel/VBoxContainer/RoundLabel
 @onready var final_label: Label = $ResultsCanvas/ResultsPanel/VBoxContainer/FinalScoreLabel
 @onready var button_label: Button = $ResultsCanvas/ResultsPanel/FinalButton
+@onready var type_chart_button: Button = $TypeChart
+@onready var streak_label: Label = $StreakLabel
 
 @onready var fire_b: CardButton = $Control/FireB
 @onready var water_b: CardButton = $Control/WaterB
@@ -45,7 +46,6 @@ script/source = "extends Node2D
 @onready var divine_b: CardButton = $Control/DivineB
 @onready var electric_b: CardButton = $Control/ElectricB
 @onready var dark_b: CardButton = $Control/DarkB
-@onready var typeChart_b = $TypeChart
 
 @onready var correctSFX = $SFX/Correct
 @onready var wrongSFX = $SFX/Wrong
@@ -147,24 +147,33 @@ func _ready() -> void:
 	color_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(color_rect)
 	
-	circular_bar.min_value = default_game_time
+	# Make circular bar full and visible immediately before countdown starts
+	circular_bar.min_value = 0
 	circular_bar.max_value = default_game_time
-	results_panel.hide()
-	streak_label.hide()
+	circular_bar.value = default_game_time
+	circular_bar.show()
+	timer_label.text = \"%.1f\" % default_game_time
+	timer_label.show()
 	
+	results_panel.hide()
 	await start_prep_phase(5.0)
 	start_new_game()
 
 func _process(_delta: float) -> void:
+	if streak > 0:
+		streak_label.show()
+		streak_label.text = \"STREAK: %dx\" % streak
+	else:
+		streak_label.hide()
+		
 	if not timer.is_stopped():
 		var time_left: float = timer.time_left
 		circular_bar.value = time_left
 		timer_label.text = \"%.1f\" % time_left
 	else:
-		circular_bar.value = 0
+		circular_bar.value = default_game_time
 		timer_label.text = \"%.1f\" % default_game_time
 		
-	# Trigger Ghost Mode panic phase when 20 seconds remain
 	if not timer.is_stopped() and timer.time_left <= 20 and not is_ghost:
 		is_ghost = true
 		timeSFX.play()
@@ -188,27 +197,47 @@ func start_prep_phase(prep_seconds: float = 3.0) -> void:
 	is_in_prep_phase = false
 	cdSFX.stop()
 
+# Resets all game variables, counters, and timers back to Round 1 defaults.
 func start_new_game() -> void:
-	timer.wait_time = default_game_time
-	timer.start(default_game_time)
+	color_rect.color = Color(0, 0, 0, 0)
+	if has_node(\"RoundTransition\"):
+		$RoundTransition.hide()
+		
+	# Make circular bar and timer label full and visible immediately
+	circular_bar.min_value = 0
+	circular_bar.max_value = default_game_time
+	circular_bar.value = default_game_time
+	circular_bar.show()
+	timer_label.text = \"%.1f\" % default_game_time
 	timer_label.show()
+	
+	type_chart_button.show()
 	cards.show()
 	results_panel.hide()
-	typeChart_b.show
 	
 	is_ghost = false
 	is_overdrive = false
+	max_elements = 5
+	start_x = 200.0
+	start_y = 250.0
+	
 	streak = 0
+	streak_label.hide()
+	
 	score = 0
 	quota = 1000
+	base_points_per_correct = 100
+	penalty_per_wrong = 50
+	reverse_chance = 0.0
 	rounds = 1
 	correct_picks = 0
 	wrong_picks = 0
-	update_streak_ui()
 	
-	circular_bar.max_value = default_game_time
-	circular_bar.value = default_game_time
-	circular_bar.min_value = 0
+	round_label.text = \"Round - 1\"
+	quota_label.text = \"Quota: \" + str(quota)
+	
+	timer.wait_time = default_game_time
+	timer.start(default_game_time)
 	
 	for i in range(max_elements):
 		spawn_element()
@@ -216,9 +245,7 @@ func start_new_game() -> void:
 func next_game() -> void:
 	rounds += 1
 	round_label.text = \"Round - \" + str(rounds)
-	typeChart_b.show()
 	
-	# Scale queue size and ghost rules by round
 	if rounds >= 4:
 		is_ghost = true
 		max_elements = 1
@@ -236,23 +263,35 @@ func next_game() -> void:
 		is_ghost = false
 		max_elements = 5
 		
-	timer.wait_time = default_game_time
-	circular_bar.min_value = default_game_time
+	color_rect.color = Color(0, 0, 0, 0)
+	if has_node(\"RoundTransition\"):
+		$RoundTransition.hide()
+	
 	results_panel.hide()
-	timer_label.show()
 	circular_bar.show()
+	timer_label.show()
+	type_chart_button.show()
 	cards.show()
 	
-	score = 0
-	streak = 0
-	is_overdrive = false
-	update_streak_ui()
+	# Keep min_value at 0 so the bar renders properly in Round 2+
+	circular_bar.min_value = 0
+	circular_bar.max_value = default_game_time
+	circular_bar.value = default_game_time
+	timer_label.text = \"%.1f\" % default_game_time
+	timer.wait_time = default_game_time
 	
-	# Scale quota and scoring by 1.25x per round
-	var multiplier: float = pow(1.25, rounds - 1)
-	quota = roundi(1000 * multiplier)
-	base_points_per_correct = roundi(100 * multiplier)
-	penalty_per_wrong = roundi(50 * multiplier)
+	score = 0
+	correct_picks = 0
+	wrong_picks = 0
+	streak = 0
+	update_streak_ui()
+	is_overdrive = false
+	$ColorRect.modulate = Color.WHITE
+	
+	quota = roundi(1000 * pow(1.38, rounds - 1))
+	base_points_per_correct = roundi(100 * pow(1.22, rounds - 1))
+	penalty_per_wrong = roundi(50 * pow(1.45, rounds - 1))
+	reverse_chance = clampf(0.15 + (rounds * 0.08), 0.0, 0.50)
 	quota_label.text = \"Quota: \" + str(quota)
 	
 	for instance in active_queue:
@@ -355,6 +394,7 @@ func process_furthest_left(played_element: String) -> void:
 func _handle_match_success(target_node: Node2D, overdrive_active: bool) -> void:
 	correct_picks += 1
 	streak += 1
+	update_streak_ui()
 	
 	if overdrive_active:
 		correctSFX.pitch_scale = 1.35
@@ -366,8 +406,6 @@ func _handle_match_success(target_node: Node2D, overdrive_active: bool) -> void:
 			activate_overdrive()
 			
 	correctSFX.play()
-	update_streak_ui()
-	
 	active_queue.pop_front()
 	target_node.queue_free()
 	
@@ -379,14 +417,11 @@ func _handle_match_success(target_node: Node2D, overdrive_active: bool) -> void:
 func _handle_match_fail() -> void:
 	wrong_picks += 1
 	streak = 0
+	update_streak_ui() # Hides StreakLabel immediately when broken
 	wrongSFX.play()
-	
+	deduct_time(1.5)
 	if is_overdrive:
 		end_overdrive()
-	else:
-		update_streak_ui()
-		
-	deduct_time(2.0)
 
 func activate_overdrive() -> void:
 	is_overdrive = true
@@ -423,9 +458,12 @@ func deduct_time(seconds: float) -> void:
 
 # UI, Animations & Results
 func update_streak_ui() -> void:
-	if streak == 0 and not is_overdrive:
+	if streak > 0:
+		streak_label.text = \"STREAK: %dx\" % streak
+		streak_label.show()
+	else:
+		streak_label.text = \"\"
 		streak_label.hide()
-		return
 		
 	streak_label.show()
 	streak_label.pivot_offset = streak_label.size / 2.0
@@ -465,16 +503,17 @@ func _stop_overdrive_pulse() -> void:
 		overdrive_pulse_tween = null
 	streak_label.scale = Vector2.ONE
 
+# Uses actual earned score (including 2x Overdrive bonuses) minus penalties to check quota.
 func show_results_tally() -> void:
 	timeSFX.stop()
-	streak_label.hide()
 	correct_label.text = \"Correct Picks: 0\"
 	penalty_label.text = \"Wrong Penalty: 0\"
 	last_round_label.text = \"Last Round: 0\"
-	final_label.text = \"Total Score: 0\"
+	final_label.text = \"FINAL SCORE: 0\"
 	results_panel.show()
 	
-	var total_correct_pts = correct_picks * base_points_per_correct
+	# 'score' already includes 2x Overdrive points earned during the round
+	var total_correct_pts = score
 	var total_penalty_pts = wrong_picks * penalty_per_wrong
 	var last_round = rounds
 	var final_score = max(0, total_correct_pts - total_penalty_pts)
@@ -489,6 +528,7 @@ func show_results_tally() -> void:
 		failSFX.play()
 	
 	var sequence = create_tween().set_parallel(false)
+	
 	sequence.tween_method(
 		func(val: int): correct_label.text = \"Correct Picks (%d): +%d\" % [correct_picks, val],
 		0, total_correct_pts, 0.8
@@ -533,7 +573,7 @@ func _on_timer_timeout() -> void:
 	timer_label.hide()
 	circular_bar.hide()
 	cards.hide()
-	typeChart_b.hide()
+	type_chart_button.hide()
 	is_overdrive = false
 	_stop_overdrive_pulse()
 	
