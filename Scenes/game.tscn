@@ -334,7 +334,7 @@ func next_game() -> void:
 	round_label.text = \"Round - \" + str(rounds)
 	
 	# Round difficulty escalation: shrink lookahead queue & enable permanent Ghost Mode at Round 4+
-	if rounds >= 4:
+	if rounds >= 5:
 		is_ghost = true
 		max_elements = 3
 		start_x = 340.0
@@ -568,7 +568,7 @@ func _handle_match_fail() -> void:
 	else:
 		update_streak_ui()
 		
-	deduct_time(2.0)
+	deduct_time(1.5)
 
 func shuffle_two_buttons() -> void:
 	if slot_buttons.size() < 2:
@@ -903,9 +903,13 @@ default_font_size = 18
 [node name="Main" type="Node2D" unique_id=1413316767]
 script = SubResource("GDScript_g2dxt")
 default_game_time = 45.0
-ghost_trigger_time = 12.0
+base_quota = 1500
+ghost_trigger_time = 10.0
 start_x = 230.0
 start_y = 280.0
+reverse_chance = 0.15
+armor_chance = 0.12
+shuffle_interval = 12
 
 [node name="PrepLabel" type="Label" parent="." unique_id=311973700]
 z_index = 1
